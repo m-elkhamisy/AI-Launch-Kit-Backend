@@ -2,7 +2,7 @@
 
 from enum import StrEnum
 
-from launchkit.domain.models.base import DomainModel
+from launchkit.core.models import AliasedModel
 
 
 class GenerationProvider(StrEnum):
@@ -17,33 +17,33 @@ class PipelineStatus(StrEnum):
     FAILED = "failed"
 
 
-class MockupDesign(DomainModel):
+class MockupDesign(AliasedModel):
     id: int
     label: str
     direction: str
     html: str
 
 
-class SiteCopySection(DomainModel):
+class SiteCopySection(AliasedModel):
     heading: str
     body: str
 
 
-class SiteCopy(DomainModel):
+class SiteCopy(AliasedModel):
     headline: str
     subheadline: str
     sections: list[SiteCopySection]
     call_to_action: str
 
 
-class BuiltPage(DomainModel):
+class BuiltPage(AliasedModel):
     name: str
     slug: str
     filename: str
     html: str
 
 
-class V0GenerationResult(DomainModel):
+class V0GenerationResult(AliasedModel):
     chat_id: str
     web_url: str
     demo_url: str | None
@@ -51,7 +51,7 @@ class V0GenerationResult(DomainModel):
     file_count: int
 
 
-class PipelineResult(DomainModel):
+class PipelineResult(AliasedModel):
     provider: GenerationProvider
     pages: list[BuiltPage]
     site_copy: SiteCopy | None

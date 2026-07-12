@@ -2,11 +2,14 @@
 
 ## Project Structure & Module Organization
 
-Production code uses a root-level src layout under `src/launchkit/`. Put domain
-models in `domain/models/`, callable business capabilities in `application/`, and
-cross-cutting configuration, logging, and exceptions in `core/`. Tests mirror the
-package under `tests/unit/`; fixed compatibility inputs belong in `tests/fixtures/`.
-Architecture and migration status live in `docs/`.
+Production code uses a root-level src layout under `src/launchkit/`. Organize code
+by business capability: `intake/`, `design/`, `planning/`, `generation/`,
+`profiles/`, `guardrails/`, `storage/`, and `deployment/`. Keep each capability's
+models and logic together. Put only genuinely shared configuration, logging,
+exceptions, and model configuration in `core/`. Future provider-specific clients
+belong in `adapters/`. Tests mirror capabilities under `tests/unit/`; fixed
+compatibility inputs belong in `tests/fixtures/`. Architecture and migration status
+live in `docs/`.
 
 Treat `reference_implementations/` as read-only source material. Root-level
 `main.py`, `pipeline.py`, storage modules, and deployment code are active legacy

@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from launchkit.domain.models import (
+from launchkit.design import (
     AnimationOption,
     ColorSwatch,
     DesignPreferences,

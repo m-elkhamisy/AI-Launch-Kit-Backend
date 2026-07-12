@@ -1,21 +1,21 @@
 """Profile extraction and image sourcing result models."""
 
-from launchkit.domain.models.base import DomainModel
-from launchkit.domain.models.intake import OnboardingFormPatch
+from launchkit.core.models import AliasedModel
+from launchkit.intake.models import OnboardingFormPatch
 
 
-class ExtractedImage(DomainModel):
+class ExtractedImage(AliasedModel):
     filename: str
     label: str
     data_url: str
 
 
-class ProfileDesignHints(DomainModel):
+class ProfileDesignHints(AliasedModel):
     tagline: str | None = None
     cta: str | None = None
 
 
-class ProfileExtractionResult(DomainModel):
+class ProfileExtractionResult(AliasedModel):
     fields: OnboardingFormPatch
     design_hints: ProfileDesignHints
     images: list[ExtractedImage]
@@ -23,7 +23,7 @@ class ProfileExtractionResult(DomainModel):
     warnings: list[str]
 
 
-class SourcedImage(DomainModel):
+class SourcedImage(AliasedModel):
     section: str
     desc: str
     src: str

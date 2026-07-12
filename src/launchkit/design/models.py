@@ -5,7 +5,7 @@ from typing import Self
 
 from pydantic import Field, model_validator
 
-from launchkit.domain.models.base import DomainModel
+from launchkit.core.models import AliasedModel
 
 
 class StyleOption(StrEnum):
@@ -61,19 +61,19 @@ class FontPairingId(StrEnum):
     CUSTOM = "custom"
 
 
-class ColorSwatch(DomainModel):
+class ColorSwatch(AliasedModel):
     primary: str = Field(pattern=r"^#[0-9A-Fa-f]{6}$")
     secondary: str = Field(pattern=r"^#[0-9A-Fa-f]{6}$")
     background: str = Field(pattern=r"^#[0-9A-Fa-f]{6}$")
     text: str = Field(pattern=r"^#[0-9A-Fa-f]{6}$")
 
 
-class FontChoice(DomainModel):
+class FontChoice(AliasedModel):
     heading: str
     body: str
 
 
-class DesignPreferences(DomainModel):
+class DesignPreferences(AliasedModel):
     """Look-and-feel choices applied across every generation provider."""
 
     tagline: str = ""

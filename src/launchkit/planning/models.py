@@ -1,14 +1,14 @@
 """Generated site and page planning models."""
 
-from launchkit.domain.models.base import DomainModel
+from launchkit.core.models import AliasedModel
 
 
-class PlannedPageImage(DomainModel):
+class PlannedPageImage(AliasedModel):
     section: str
     desc: str
 
 
-class PlannedPage(DomainModel):
+class PlannedPage(AliasedModel):
     name: str
     slug: str
     is_home: bool
@@ -17,6 +17,6 @@ class PlannedPage(DomainModel):
     images: list[PlannedPageImage]
 
 
-class SitePlan(DomainModel):
+class SitePlan(AliasedModel):
     pages: list[PlannedPage]
     raw: str

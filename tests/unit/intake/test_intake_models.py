@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from launchkit.domain.models import LegacyCompany, OnboardingForm, OnboardingFormPatch
+from launchkit.intake import LegacyCompany, OnboardingForm, OnboardingFormPatch
 
 
 def test_onboarding_form_preserves_camel_case_contract() -> None:

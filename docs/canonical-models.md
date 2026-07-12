@@ -1,8 +1,9 @@
 # Canonical Model Sources
 
-The backend uses Python snake_case attributes and serializes TypeScript-derived
-models with their original camelCase field names. All models reject unknown fields.
-The preserved implementations remain the compatibility authority.
+Models live with the capability that owns them. The backend uses Python snake_case
+attributes and serializes TypeScript-derived models with their original camelCase
+field names. All models reject unknown fields. The preserved implementations remain
+the compatibility authority.
 
 | Models | Source | Compatibility and validation |
 |---|---|---|
@@ -22,10 +23,9 @@ The preserved implementations remain the compatibility authority.
 - Next.js request/response bodies and root `Submission` are transport models and are
   deferred with endpoint redesign.
 - Wizard steps, editable pages/sections, catalog templates, and form rendering config
-  are frontend state rather than backend domain data.
+  are frontend state rather than backend capability data.
 - Provider SDK response objects stay behind future adapters.
 - Briefs, prompts, and grounded fact sheets remain strings; wrapper models would not
   add validation or domain meaning.
 - A legacy-to-rich intake converter is deferred because several mappings are lossy or
   ambiguous and must not be silently combined.
-

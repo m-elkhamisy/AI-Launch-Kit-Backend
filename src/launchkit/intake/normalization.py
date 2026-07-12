@@ -4,7 +4,7 @@ import json
 from collections.abc import Mapping, Sequence
 from typing import Any, Final
 
-from launchkit.domain.models.intake import LegacyCompany, OnboardingField, OnboardingForm
+from launchkit.intake.models import LegacyCompany, OnboardingField, OnboardingForm
 
 FIELD_MAP: Final[dict[str, tuple[str, ...]]] = {
     "name": ("name", "company_name", "businessName", "business_name"),

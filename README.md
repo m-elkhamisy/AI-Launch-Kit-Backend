@@ -9,9 +9,15 @@ callable application capabilities are migrated and verified.
 
 ```text
 src/launchkit/             Production package
-  application/             Callable use cases and capability coordination
   core/                    Settings, logging, and shared exceptions
-  domain/models/           Canonical business models
+  intake/                  Intake models and normalization
+  design/                  Design preference models and rules
+  planning/                Site and page planning
+  generation/              Generation results and future workflow service
+  profiles/                Profile extraction models and logic
+  guardrails/              Submission review models and rules
+  storage/                 Storage-neutral records and contracts
+  deployment/              Deployment and claim behavior
 tests/                     Unit tests and characterization fixtures
 docs/                      Architecture and migration documentation
 reference_implementations/ Preserved Python and TypeScript source material
@@ -49,7 +55,7 @@ business routes are exposed in the current migration phase.
 Business capabilities do not depend on FastAPI:
 
 ```python
-from launchkit.application.intake.normalization import normalize_company
+from launchkit.intake import normalize_company
 
 company = normalize_company({"businessName": "Northstar", "products": ["Advisory"]})
 print(company.model_dump())

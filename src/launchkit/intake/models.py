@@ -2,7 +2,7 @@
 
 from enum import StrEnum
 
-from launchkit.domain.models.base import DomainModel, PythonSourceModel
+from launchkit.core.models import AliasedModel, PythonSourceModel
 
 
 class OnboardingField(StrEnum):
@@ -29,7 +29,7 @@ class OnboardingField(StrEnum):
     NOTES = "notes"
 
 
-class OnboardingForm(DomainModel):
+class OnboardingForm(AliasedModel):
     """Rich form used by the consolidated TypeScript generation flow."""
 
     company_name: str = ""
@@ -55,7 +55,7 @@ class OnboardingForm(DomainModel):
     notes: str = ""
 
 
-class OnboardingFormPatch(DomainModel):
+class OnboardingFormPatch(AliasedModel):
     """Partial intake fields returned by profile extraction."""
 
     company_name: str | None = None

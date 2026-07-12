@@ -4,14 +4,16 @@ from typing import Any
 
 import pytest
 
-from launchkit.application.intake.normalization import (
+from launchkit.design import DesignPreferences
+from launchkit.intake import (
+    OnboardingField,
+    OnboardingForm,
     flatten_submission,
     missing_required_fields,
     normalize_company,
 )
-from launchkit.domain.models import DesignPreferences, OnboardingField, OnboardingForm
 
-FIXTURES = Path(__file__).parents[3] / "fixtures"
+FIXTURES = Path(__file__).parents[2] / "fixtures"
 
 
 def _load_json(name: str) -> Any:

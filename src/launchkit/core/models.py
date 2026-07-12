@@ -1,10 +1,10 @@
-"""Shared Pydantic configuration for canonical domain models."""
+"""Shared Pydantic configuration for capability models."""
 
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
 
 
-class DomainModel(BaseModel):
+class AliasedModel(BaseModel):
     """Strict model with Python attributes and TypeScript-compatible aliases."""
 
     model_config = ConfigDict(
