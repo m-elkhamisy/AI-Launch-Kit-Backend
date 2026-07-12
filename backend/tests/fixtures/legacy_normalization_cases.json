@@ -1,0 +1,104 @@
+[
+  {
+    "name": "flat aliases and service list",
+    "input": {
+      "company_name": "  Acme Labs  ",
+      "sector": " Technology ",
+      "offerings": [" Strategy ", "", 12],
+      "target": " Product teams ",
+      "style": " Direct ",
+      "city": " Dubai ",
+      "contactEmail": " hello@example.com ",
+      "contactPhone": " +971 555 0100 ",
+      "brand_colors": " blue and white ",
+      "motion_level": " subtle "
+    },
+    "expected": {
+      "name": "Acme Labs",
+      "industry": "Technology",
+      "tagline": "",
+      "description": "",
+      "services": "Strategy; 12",
+      "audience": "Product teams",
+      "tone": "Direct",
+      "location": "Dubai",
+      "website": "",
+      "contact_email": "hello@example.com",
+      "contact_phone": "+971 555 0100",
+      "colorway": "blue and white",
+      "animation_level": "subtle"
+    }
+  },
+  {
+    "name": "nested dictionary with top-level precedence",
+    "input": {
+      "raw": {"name": "Inner Name", "industry": "Retail", "services": "Sales"},
+      "name": "Outer Name",
+      "services": "Consulting"
+    },
+    "expected": {
+      "name": "Outer Name",
+      "industry": "Retail",
+      "tagline": "",
+      "description": "",
+      "services": "Consulting",
+      "audience": "general customers",
+      "tone": "professional and trustworthy",
+      "location": "",
+      "website": "",
+      "contact_email": "",
+      "contact_phone": "",
+      "colorway": "",
+      "animation_level": ""
+    }
+  },
+  {
+    "name": "nested JSON and case-insensitive keys",
+    "input": {
+      "raw": "{\"BusinessName\": \"JSON Company\", \"CATEGORY\": \"Hospitality\", \"PRODUCTS\": [\"Rooms\", \"Dining\"]}",
+      "URL": "https://example.com"
+    },
+    "expected": {
+      "name": "JSON Company",
+      "industry": "Hospitality",
+      "tagline": "",
+      "description": "",
+      "services": "Rooms; Dining",
+      "audience": "general customers",
+      "tone": "professional and trustworthy",
+      "location": "",
+      "website": "https://example.com",
+      "contact_email": "",
+      "contact_phone": "",
+      "colorway": "",
+      "animation_level": ""
+    }
+  },
+  {
+    "name": "malformed JSON and empty fallback values",
+    "input": {
+      "raw": "{not-json",
+      "name": "",
+      "business_name": "Fallback Name",
+      "services": [],
+      "audience": {},
+      "tone": null
+    },
+    "expected": {
+      "name": "Fallback Name",
+      "industry": "\u2014",
+      "tagline": "",
+      "description": "",
+      "services": "\u2014",
+      "audience": "general customers",
+      "tone": "professional and trustworthy",
+      "location": "",
+      "website": "",
+      "contact_email": "",
+      "contact_phone": "",
+      "colorway": "",
+      "animation_level": ""
+    }
+  }
+]
+

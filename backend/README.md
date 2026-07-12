@@ -9,7 +9,7 @@ until the callable application capabilities are migrated and verified.
 From the repository root on Windows PowerShell:
 
 ```powershell
-C:\Users\rabea\AppData\Local\Programs\Python\Python312\python.exe -m venv backend\.venv
+py -3.12 -m venv backend\.venv
 backend\.venv\Scripts\python.exe -m pip install -e ".\backend[dev]"
 Copy-Item backend\.env.example backend\.env
 backend\.venv\Scripts\python.exe -m uvicorn launchkit.main:app --app-dir backend\src --reload
@@ -31,3 +31,16 @@ Provider, storage, and deployment environment variables will be documented when
 their adapters are migrated. Root-level Python files remain the active legacy
 implementation during this phase.
 
+## Direct Python Usage
+
+Current business capabilities do not depend on FastAPI:
+
+```python
+from launchkit.application.intake.normalization import normalize_company
+
+company = normalize_company({"businessName": "Northstar", "products": ["Advisory"]})
+print(company.model_dump())
+```
+
+The future `WebsiteGenerationService` remains deferred until its individual
+capabilities and external adapter contracts have been migrated and tested.

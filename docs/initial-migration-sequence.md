@@ -11,7 +11,7 @@ logic is stable.
 
 | Stage | Scope | Source files | Proposed target files | Required tests | Mocks | Completion criteria | Depends on | Main risks | Remove reference? |
 |---|---|---|---|---|---|---|---|---|---|
-| 1 | Typed models and deterministic normalization. | `types/*`, `form-config.ts`, `local_store.py`, `s3_store.py`. | `launchkit/models.py`, `launchkit/intake/normalization.py`. | Validation defaults, required fields, alias mapping, nested `raw` flattening. | none | Python models cover known TS/Python inputs and normalization matches current aliases. | none | Overfitting to current flat Python schema and losing richer Haseeb form fields. | Keep all references. |
+| 1 | **Complete** - typed models and deterministic normalization. | `types/*`, `form-config.ts`, `local_store.py`, `s3_store.py`. | `launchkit/domain/models/*`, `launchkit/application/intake/normalization.py`. | Validation defaults, required fields, alias mapping, nested `raw` flattening. | none | Python models cover known TS/Python inputs and normalization matches current aliases. | none | Rich Haseeb and flat legacy intake remain separate until a lossless mapping is defined. | Keep all references. |
 | 2 | Fact grounding and prompt builders. | `grounding.ts`, `site-prompts.ts`, `design-utils.ts`, `plan-text.ts`, `pipeline.py`, Karim prompt blocks. | `launchkit/grounding.py`, `launchkit/prompts/brief.py`, `launchkit/prompts/site.py`. | Snapshot tests for fact sheet, brief, mockup, plan, page, and v0 prompts. | none | Prompt text is deterministic for fixtures and preserves anti-hallucination behavior. | Stage 1 | Prompt wording drift can change generation quality. | Keep references. |
 | 3 | HTML post-processing. | `html-postprocess.ts`, Karim `fix_ctas`, `strip_breadcrumbs`, `fix_duplicate_images`, `fix_tailwind_classes`. | `launchkit/html_postprocess.py`. | CTA repair, duplicate image replacement, breadcrumb/nav removal, favicon/AOS injection, optional Tailwind snap tests. | none | Deterministic repairs match intended snippets. | none | Regex differences can over-remove valid nav or miss malformed HTML. | Keep until page build verified. |
 | 4 | Plan/page/section transformations. | `page-plan-utils.ts`, `types/generation.ts`, `plan-text.ts`. | `launchkit/planning/site_plan.py`, `launchkit/planning/page_sections.py`. | Slug uniqueness, home fallback, locked Navigation/Footer, add/remove/move/reorder, selected page conversion. | none | Page editor transformations behave like Haseeb reference. | Stage 1 | UI-state concepts may not belong in backend if no API exposes editable plans. | Keep until product flow is confirmed. |
@@ -26,9 +26,22 @@ logic is stable.
 
 ## Recommended First Migration Capability
 
-Start with Stage 1: typed models and deterministic normalization. It has no
-external dependencies, unlocks prompt and storage work, and gives the migration a
-shared language before the harder LLM and orchestration behavior is touched.
+Stage 1 is complete. The next migration group is Stage 2: fact grounding and
+deterministic prompt builders. It can now consume canonical intake/design models
+without introducing network dependencies.
+
+## Migration Progress
+
+- Backend foundation: Python 3.12 src-layout package, typed settings, structured
+  logging, shared exceptions, and a FastAPI shell with no business routes.
+- Canonical models: source-backed intake, design, planning, generation, profile,
+  image, guardrail, storage, and deployment result shapes.
+- Intake normalization: legacy aliases, nested `raw` handling, precedence,
+  defaults, and required Haseeb fields covered by fixed characterization tests.
+- Verification: Ruff formatting/linting, strict mypy, pytest with at least 90%
+  branch coverage, and `git diff --check` are required for every migration commit.
+- References: all three directories under `reference_implementations/` remain
+  unchanged and are still required for later migration groups.
 
 ## Existing Endpoint Review
 
@@ -47,4 +60,3 @@ errors into HTTP responses.
   claim deployment, or only one of them.
 - Whether editable page/section planning belongs in backend APIs or remains a
   frontend-only planning state transformed before build.
-
