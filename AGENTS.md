@@ -1,32 +1,57 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-This repository currently contains project documentation plus Spec Kit scaffolding. The application described in `README.md` is a Next.js launch-site generator. When source files are restored or added, keep the documented layout: `app/api/` for route handlers, `components/` for React UI, `hooks/` for client state, `lib/` for generation, grounding, extraction, and provider wrappers, and `types/` for shared TypeScript types. Keep generated specifications, plans, tasks, and workflow assets under `.specify/`.
+
+Production code uses a root-level src layout under `src/launchkit/`. Put domain
+models in `domain/models/`, callable business capabilities in `application/`, and
+cross-cutting configuration, logging, and exceptions in `core/`. Tests mirror the
+package under `tests/unit/`; fixed compatibility inputs belong in `tests/fixtures/`.
+Architecture and migration status live in `docs/`.
+
+Treat `reference_implementations/` as read-only source material. Root-level
+`main.py`, `pipeline.py`, storage modules, and deployment code are active legacy
+files until their behavior is replaced and verified. Do not add new logic there.
 
 ## Build, Test, and Development Commands
-Use the npm workflow described in `README.md`:
 
-```bash
-npm install
-cp .env.example .env.local
-npm run dev
-npm run build
-npm test
+Create the Python 3.12 environment and install development dependencies:
+
+```powershell
+py -3.12 -m venv .venv
+.venv\Scripts\python.exe -m pip install -e ".[dev]"
 ```
 
-`npm install` installs dependencies. `npm run dev` starts the local Next.js app. `npm run build` should type-check and produce a production build. `npm test` should run the test suite once tests are added.
+Run the transport shell with `.venv\Scripts\python.exe -m uvicorn
+launchkit.main:app --app-dir src --reload`. Run formatting, linting, typing, and
+tests with:
+
+```powershell
+.venv\Scripts\python.exe -m ruff format --check src tests
+.venv\Scripts\python.exe -m ruff check src tests
+.venv\Scripts\python.exe -m mypy src tests
+.venv\Scripts\python.exe -m pytest tests --cov=launchkit --cov-fail-under=90
+```
 
 ## Coding Style & Naming Conventions
-Use TypeScript for application code. Prefer small, focused modules with descriptive names such as `grounding.ts`, `site-pipeline.ts`, and `profile-extraction.ts`. React components should use PascalCase exports and kebab-case filenames where the existing codebase does, for example `site-wizard.tsx`. Keep API route folder names lowercase and URL-oriented.
+
+Use complete type annotations on public interfaces and strict mypy-compatible
+Python. Name modules and functions with `snake_case`, classes with `PascalCase`, and
+enums with uppercase members. Keep modules capability-focused; avoid broad
+`utils.py`, `services.py`, or pipeline modules. Business logic must not import
+FastAPI or read environment variables directly.
 
 ## Testing Guidelines
-The README notes that automated tests are not present yet. Add tests with each behavioral change once the test framework is available. Name tests after the unit or workflow under test, for example `grounding.test.ts` or `site-pipeline.test.ts`. Cover prompt grounding, HTML post-processing, provider fallbacks, and API route behavior before shipping changes that touch generation.
+
+Use pytest with offline fakes for every external dependency. Add unit tests for
+validation and pure behavior, characterization fixtures for preserved behavior,
+and equivalence tests where outputs are deterministic. Maintain at least 90% branch
+coverage for the migrated package.
 
 ## Commit & Pull Request Guidelines
-Recent history uses short imperative or descriptive subjects, such as `Reset main to README only` and `Initial commit`. Keep commits focused and explain the user-visible change. Pull requests should include a concise summary, linked issue or spec when relevant, environment/configuration notes, and screenshots or generated-site examples for UI changes. Mention any build or test command you could not run.
 
-## Security & Configuration Tips
-Do not commit `.env.local`, API keys, generated credentials, or uploaded client files. `OPENROUTER_API_KEY` is the minimum required key; `V0_API_KEY` and `PEXELS_API_KEY` should degrade gracefully when absent.
-
-## Agent-Specific Instructions
-This repo includes Spec Kit for Codex. Keep `.agents/skills/` and `.specify/` tracked when Spec Kit is part of the team workflow; they are project scaffolding, not local cache.
+Use focused imperative commits such as `feat: migrate intake normalization`. Pull
+requests should identify migrated source files, intentional behavior differences,
+quality-check results, configuration changes, and any legacy dependency that
+remains. Never commit `.env`, credentials, client uploads, generated sites, or
+provider responses containing sensitive data. Keep `.agents/` and `.specify/`
+tracked as project workflow scaffolding.
