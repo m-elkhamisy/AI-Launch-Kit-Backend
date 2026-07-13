@@ -15,6 +15,7 @@ src/launchkit/             Production package
   design/                  Design preferences, presets, and token resolution
   planning/                Site plans and customer-readable plan rendering
   generation/              Generation models and deterministic prompt builders
+  html/                    Generated HTML repair and document injections
   profiles/                Profile extraction models and logic
   guardrails/              Submission review models and rules
   storage/                 Storage-neutral records and contracts
@@ -73,5 +74,17 @@ form = OnboardingForm(company_name="Northstar", industry="Technology")
 brief = build_brief(form, DesignPreferences(), resolve_industry_style_direction(form))
 ```
 
+Generated HTML can be repaired without invoking a provider:
+
+```python
+from launchkit.html import postprocess_html
+
+repaired = postprocess_html(
+    generated_html,
+    order_page_href="book-a-demo.html",
+    favicon_href="/assets/logo.png",
+)
+```
+
 Provider, storage, and deployment configuration will be added as their adapters
-are migrated. The next migration group covers deterministic HTML post-processing.
+are migrated. The next migration group covers plan, page, and section transformations.

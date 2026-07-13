@@ -4,7 +4,7 @@
 
 Production code uses a root-level src layout under `src/launchkit/`. Organize code
 by business capability: `intake/`, `design/`, `planning/`, `generation/`,
-`profiles/`, `guardrails/`, `storage/`, and `deployment/`. Keep each capability's
+`html/`, `profiles/`, `guardrails/`, `storage/`, and `deployment/`. Keep each capability's
 models and logic together. Put only genuinely shared configuration, logging,
 exceptions, and model configuration in `core/`. Future provider-specific clients
 belong in `adapters/`. Tests mirror capabilities under `tests/unit/`; fixed
