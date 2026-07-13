@@ -15,6 +15,13 @@ class ProfileDesignHints(AliasedModel):
     cta: str | None = None
 
 
+class ProfileFieldExtraction(AliasedModel):
+    """Provider-neutral structured fields extracted from profile text."""
+
+    fields: OnboardingFormPatch
+    design_hints: ProfileDesignHints
+
+
 class ProfileExtractionResult(AliasedModel):
     fields: OnboardingFormPatch
     design_hints: ProfileDesignHints

@@ -1,4 +1,4 @@
-from launchkit.profiles import ProfileExtractionResult, SourcedImage
+from launchkit.profiles import ProfileExtractionResult, ProfileFieldExtraction, SourcedImage
 
 
 def test_profile_result_accepts_partial_fields() -> None:
@@ -23,3 +23,14 @@ def test_sourced_image_preserves_optional_credit() -> None:
     )
 
     assert image.credit is None
+
+
+def test_profile_field_extraction_uses_camel_case_aliases() -> None:
+    extraction = ProfileFieldExtraction.model_validate(
+        {"fields": {"companyName": "Acme"}, "designHints": {"cta": "Call us"}}
+    )
+
+    assert extraction.model_dump(by_alias=True, exclude_none=True) == {
+        "fields": {"companyName": "Acme"},
+        "designHints": {"cta": "Call us"},
+    }
