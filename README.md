@@ -11,9 +11,10 @@ callable application capabilities are migrated and verified.
 src/launchkit/             Production package
   core/                    Settings, logging, and shared exceptions
   intake/                  Intake models and normalization
-  design/                  Design preference models and rules
-  planning/                Site and page planning
-  generation/              Generation results and future workflow service
+  grounding/               Verified fact sheets and factual-discipline rules
+  design/                  Design preferences, presets, and token resolution
+  planning/                Site plans and customer-readable plan rendering
+  generation/              Generation models and deterministic prompt builders
   profiles/                Profile extraction models and logic
   guardrails/              Submission review models and rules
   storage/                 Storage-neutral records and contracts
@@ -61,6 +62,16 @@ company = normalize_company({"businessName": "Northstar", "products": ["Advisory
 print(company.model_dump())
 ```
 
+Grounded prompts are also direct Python callables:
+
+```python
+from launchkit.design import DesignPreferences, resolve_industry_style_direction
+from launchkit.generation import build_brief
+from launchkit.intake import OnboardingForm
+
+form = OnboardingForm(company_name="Northstar", industry="Technology")
+brief = build_brief(form, DesignPreferences(), resolve_industry_style_direction(form))
+```
+
 Provider, storage, and deployment configuration will be added as their adapters
-are migrated. The next migration group covers fact grounding and deterministic
-prompt builders.
+are migrated. The next migration group covers deterministic HTML post-processing.
