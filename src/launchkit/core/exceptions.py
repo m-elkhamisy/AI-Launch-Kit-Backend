@@ -15,3 +15,22 @@ class ApplicationError(LaunchKitError):
 
 class ConfigurationError(ApplicationError):
     """Raised when required runtime configuration is invalid or missing."""
+
+
+class ProviderError(ApplicationError):
+    """Normalized external-provider failure without SDK-specific objects."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        status_code: int | None = None,
+        provider_name: str | None = None,
+        retryable: bool = False,
+        retry_after: float | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+        self.provider_name = provider_name
+        self.retryable = retryable
+        self.retry_after = retry_after

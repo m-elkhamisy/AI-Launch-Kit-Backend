@@ -3,7 +3,7 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 Environment = Literal["local", "test", "staging", "production"]
@@ -23,6 +23,17 @@ class Settings(BaseSettings):
     debug: bool = False
     log_level: str = Field(default="INFO", pattern=r"^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$")
     log_json: bool = False
+    openrouter_api_key: SecretStr | None = None
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
+    site_url: str = "http://localhost:8000"
+    openrouter_app_title: str = "LaunchKit Generator"
+    generation_model: str = "anthropic/claude-sonnet-5"
+    utility_model: str | None = None
+    image_model: str = "google/gemini-2.5-flash-image"
+    openrouter_max_concurrent: int = Field(default=2, ge=1)
+    openrouter_min_request_gap_ms: int = Field(default=250, ge=0)
+    openrouter_sequential: bool = False
+    openrouter_retry_attempts: int = Field(default=6, ge=1)
 
 
 @lru_cache

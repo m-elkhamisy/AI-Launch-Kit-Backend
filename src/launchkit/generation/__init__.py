@@ -1,4 +1,8 @@
-"""Website generation models."""
+"""Website generation capability."""
+
+from launchkit.generation.legacy_brief import BriefFlagged, LegacyBriefService
+
+__all__ = ["BriefFlagged", "LegacyBriefService"]
 
 from launchkit.generation.models import (
     BuiltPage,

@@ -2,6 +2,7 @@
 
 # ruff: noqa: E501
 
+from launchkit.generation.contracts import TextGenerator
 from launchkit.intake.models import OnboardingForm
 
 _INDUSTRY_PRESETS: tuple[tuple[str, str], ...] = (
@@ -180,3 +181,26 @@ def resolve_industry_style_direction(form: OnboardingForm) -> str:
         if key in haystack:
             return f"INDUSTRY STYLE DIRECTION ({key}): {style}"
     return ""
+
+
+async def get_industry_style_direction(
+    form: OnboardingForm,
+    generator: TextGenerator,
+) -> str:
+    """Prefer a short tailored direction and fall back deterministically."""
+
+    prompt = (
+        "You are a web design director. In 3-4 short lines, give a visual style direction for a "
+        f"marketing website for this business:\nBusiness: {form.industry}\n"
+        f"Company: {form.company_name}\nNotes: {form.aesthetic or form.notes or 'none'}\n"
+        "Cover: mood, color tendencies, typography feel, imagery style, and 1-2 "
+        "industry-specific sections worth including (e.g. menu grid, case studies, booking). "
+        "Be specific to this industry, not generic. Plain text only, no markdown."
+    )
+    try:
+        response = await generator.generate_text(prompt, max_tokens=220)
+        if response.strip():
+            return f"INDUSTRY STYLE DIRECTION (tailored): {response.strip()}"
+    except Exception:
+        pass
+    return resolve_industry_style_direction(form)
