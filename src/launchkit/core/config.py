@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     openrouter_min_request_gap_ms: int = Field(default=250, ge=0)
     openrouter_sequential: bool = False
     openrouter_retry_attempts: int = Field(default=6, ge=1)
+    v0_api_key: SecretStr | None = None
+    v0_base_url: str = "https://api.v0.dev/v1"
+    v0_model: str = "v0-max"
 
 
 @lru_cache

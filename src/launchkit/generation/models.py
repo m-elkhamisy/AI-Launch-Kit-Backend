@@ -17,6 +17,12 @@ class PipelineStatus(StrEnum):
     FAILED = "failed"
 
 
+class V0ChatPrivacy(StrEnum):
+    PRIVATE = "private"
+    UNLISTED = "unlisted"
+    PUBLIC = "public"
+
+
 class MockupDesign(AliasedModel):
     id: int
     label: str
@@ -45,10 +51,21 @@ class BuiltPage(AliasedModel):
 
 class V0GenerationResult(AliasedModel):
     chat_id: str
-    web_url: str
+    web_url: str | None
     demo_url: str | None
     status: PipelineStatus
     file_count: int
+
+
+class V0HandoffResult(AliasedModel):
+    chat_id: str
+    claim_url: str
+    privacy: V0ChatPrivacy | None
+
+
+class ArchiveDownload(AliasedModel):
+    content: bytes
+    filename: str
 
 
 class PipelineResult(AliasedModel):
