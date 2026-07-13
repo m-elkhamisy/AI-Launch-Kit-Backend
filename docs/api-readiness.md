@@ -3,6 +3,18 @@
 Stages 1-11 are complete. FastAPI remains a route-free transport shell; the next phase
 can add endpoints without relocating business rules.
 
+## Pre-API Readiness
+
+- Capability packages expose stable service imports for route composition.
+- An architecture test prevents FastAPI imports outside `launchkit.main` and the
+  future `launchkit.api` package.
+- Provider clients, storage, and deployment are injected; importing the app does not
+  require credentials or initialize network clients.
+- Contributor source mappings and compatibility decisions are documented in
+  `docs/contributor-migration-guide.md`.
+- Root legacy routes and reference implementations remain available until replacement
+  route tests prove equivalent behavior.
+
 ## Callable Workflows
 
 | Future transport action | Existing callable |

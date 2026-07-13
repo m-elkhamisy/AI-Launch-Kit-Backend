@@ -2,8 +2,17 @@
 
 Python backend capabilities for generating multi-page marketing websites from
 company intake data. The production package uses a Python 3.12 src layout. FastAPI
-is currently a transport shell only; business endpoints are deferred until the
-callable application capabilities are migrated and verified.
+is currently a transport shell only. Migration stages 1-11 are complete, and the
+callable business layer is ready for thin API routes in Stage 12.
+
+## Current Status
+
+- Intake, grounding, guardrails, profile extraction, planning, generation, images,
+  HTML repair, archives, storage, and deployment are implemented and tested.
+- Business workflows are directly callable without FastAPI or HTTP.
+- OpenRouter, Pexels, v0, S3, and Vercel are isolated behind adapters and are tested
+  offline with fakes or mock transports.
+- FastAPI exposes documentation routes only; business endpoints are the next phase.
 
 ## Project Structure
 
@@ -31,6 +40,18 @@ reference_implementations/ Preserved Python and TypeScript source material
 The root-level `main.py`, `pipeline.py`, storage modules, deployment module, and
 `requirements.txt` remain active legacy transport until replacement API routes are
 verified. Their reusable behavior now has tested equivalents under `src/launchkit/`.
+
+## Team Migration Map
+
+| Source work | Where it lives now |
+|---|---|
+| Anas's Python/FastAPI implementation | `intake/`, `guardrails/`, `storage/`, `generation/legacy_*`, `adapters/v0.py`, and `deployment/` |
+| Haseeb's TypeScript/Next.js business logic | `intake/`, `design/`, `grounding/`, `profiles/`, `planning/`, `generation/`, `images/`, `html/`, and `adapters/` |
+| Karim's standalone Python generator | Prompt constraints, profile/image handling, planning, page building, HTML repair, and archives in the corresponding capability packages |
+
+See [`docs/contributor-migration-guide.md`](docs/contributor-migration-guide.md) for
+the file-level crosswalk, intentional exclusions, compatibility decisions, and
+supported imports. Preserved originals remain under `reference_implementations/`.
 
 ## Local Setup
 
@@ -102,6 +123,17 @@ service = WebsiteGenerationService(
     v0=v0_adapter,  # optional for Claude-only generation
 )
 result = await service.generate(WebsiteGenerationRequest(...))
+```
+
+The primary service entry points are:
+
+```python
+from launchkit.deployment import ClaimDeploymentService
+from launchkit.generation import WebsiteGenerationService
+from launchkit.generation.mockups import MockupGenerationService
+from launchkit.guardrails import GuardrailReviewService
+from launchkit.planning.service import SitePlanningService
+from launchkit.profiles import ProfileExtractionService
 ```
 
 Construct provider adapters with shared `httpx.AsyncClient` instances. OpenRouter,
