@@ -1,5 +1,6 @@
 """Image registry and sourcing capability."""
 
+from launchkit.images.catalogs import ImageCatalogService
 from launchkit.images.registry import ImageRegistry
 from launchkit.images.sourcing import (
     PANEL_SENTINEL,
@@ -9,6 +10,7 @@ from launchkit.images.sourcing import (
 )
 
 __all__ = [
+    "ImageCatalogService",
     "ImageRegistry",
     "PANEL_SENTINEL",
     "is_real_image",

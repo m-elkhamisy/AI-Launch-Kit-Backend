@@ -14,20 +14,23 @@ src/launchkit/             Production package
   grounding/               Verified fact sheets and factual-discipline rules
   design/                  Design preferences, presets, and token resolution
   planning/                Site plans and customer-readable plan rendering
-  generation/              Generation models and deterministic prompt builders
+  generation/              Brief, mockup, page-build, and provider-mode orchestration
+  images/                  Image sourcing, catalogs, and prompt-safe registry
   html/                    Generated HTML repair and document injections
   profiles/                Profile extraction models and logic
   guardrails/              Submission review models and rules
-  storage/                 Storage-neutral records and contracts
+  storage/                 Local/S3 submission persistence
   deployment/              Deployment and claim behavior
+  archive/                 Generated HTML and ZIP downloads
+  adapters/                OpenRouter, Pexels, v0, and Vercel HTTP boundaries
 tests/                     Unit tests and characterization fixtures
 docs/                      Architecture and migration documentation
 reference_implementations/ Preserved Python and TypeScript source material
 ```
 
 The root-level `main.py`, `pipeline.py`, storage modules, deployment module, and
-`requirements.txt` remain the active legacy implementation until equivalent
-behavior is verified in `src/launchkit/`.
+`requirements.txt` remain active legacy transport until replacement API routes are
+verified. Their reusable behavior now has tested equivalents under `src/launchkit/`.
 
 ## Local Setup
 
@@ -86,5 +89,23 @@ repaired = postprocess_html(
 )
 ```
 
-Provider, storage, and deployment configuration will be added as their adapters
-are migrated. The next migration group covers plan, page, and section transformations.
+The complete build workflow is also a direct async Python callable:
+
+```python
+from launchkit.generation import WebsiteGenerationRequest, WebsiteGenerationService
+
+service = WebsiteGenerationService(
+    brief_service=brief_service,
+    page_builder=page_builder,
+    copy_extractor=copy_extractor,
+    image_catalogs=image_catalogs,
+    v0=v0_adapter,  # optional for Claude-only generation
+)
+result = await service.generate(WebsiteGenerationRequest(...))
+```
+
+Construct provider adapters with shared `httpx.AsyncClient` instances. OpenRouter,
+Pexels, v0, S3, and Vercel credentials are optional at application startup and are
+required only when their adapter is constructed or workflow selected. See
+`.env.example` for all `LAUNCHKIT_` settings and `docs/api-readiness.md` for the next
+transport phase.

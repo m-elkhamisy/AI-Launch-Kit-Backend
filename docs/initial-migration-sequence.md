@@ -14,21 +14,21 @@ logic is stable.
 | 1 | **Complete** - typed models and deterministic normalization. | `types/*`, `form-config.ts`, `local_store.py`, `s3_store.py`. | Capability `models.py` files and `launchkit/intake/normalization.py`. | Validation defaults, required fields, alias mapping, nested `raw` flattening. | none | Python models cover known TS/Python inputs and normalization matches current aliases. | none | Rich Haseeb and flat legacy intake remain separate until a lossless mapping is defined. | Keep all references. |
 | 2 | **Complete** - fact grounding and prompt builders. | `grounding.ts`, `site-prompts.ts`, `design-utils.ts`, `plan-text.ts`, `pipeline.py`, Karim prompt blocks. | `launchkit/grounding/`, `launchkit/design/{presets,tokens,industry}.py`, `launchkit/planning/text.py`, `launchkit/generation/prompts/`. | Fact-sheet fixture, design-token equivalence, prompt rule assertions, and full-output digest snapshots. | none | Prompt text is deterministic for fixtures and preserves anti-hallucination behavior. | Stage 1 | Prompt wording drift can change generation quality. | Keep references. |
 | 3 | **Complete** - HTML post-processing. | `html-postprocess.ts`, Haseeb `postprocessPage`, Karim `fix_ctas`, `strip_breadcrumbs`, `fix_duplicate_images`, `fix_tailwind_classes`. | `launchkit/html/{repairs,injections,tailwind,processing}.py`. | CTA repair, duplicate image replacement, breadcrumb/nav removal, favicon/AOS injection, composition order, output digest, and opt-in Tailwind snapping. | none | Deterministic repairs match intended snippets and are callable without orchestration. | none | Regex differences can over-remove valid nav or miss malformed HTML; Tailwind snapping remains opt-in. | Keep until page build verified. |
-| 4 | Plan parsing and normalization. | `generateSitePlan` in `site-pipeline.ts`, `types/generation.ts`, `plan-text.ts`. `page-plan-utils.ts` is retained only as frontend reference. | `launchkit/planning/normalization.py`. | Invalid/empty JSON, code fences, slug uniqueness, home fallback, field defaults, and page ordering. | none | Model output becomes a canonical `SitePlan` with exactly one home page and deterministic slugs. | Stage 1 | Model output can be malformed; fail clearly instead of inventing pages. Frontend editor state must not leak into backend models. | Keep all references. |
+| 4 | **Complete** - plan parsing and normalization. | `generateSitePlan` in `site-pipeline.ts`, `types/generation.ts`, `plan-text.ts`. `page-plan-utils.ts` is retained only as frontend reference. | `launchkit/planning/{normalization,service}.py`. | Invalid/empty JSON, code fences, slug uniqueness, home fallback, field defaults, revisions, and page ordering. | Text generator stub. | Model output becomes a canonical `SitePlan` with exactly one home page and deterministic slugs; frontend editor state stays excluded. | Stage 1 | Model output can be malformed; fail clearly instead of inventing pages. | Keep all references. |
 | 5 | **Complete** - profile extraction. | `profile-extraction.ts`, Karim `read_profile_file`, `extract_images_from_file`, `label_image`. | `launchkit/profiles/{parsing,contracts,extraction}.py`. | TXT/MD decoding, unsupported extensions, DOCX text/images, PDF text, truncation, warnings, and label fallbacks. | Injected image labeler and field extractor. | Extraction returns typed fields, design hints, DOCX images, filename, and warnings without network calls; blocking parsers run off the event loop. | Stages 1-2 | PDF images are intentionally unsupported and produce a compatibility warning. | Keep references. |
 | 6 | **Complete** - LLM queue, provider boundary, guardrail review, and legacy brief. | `request-queue.ts`, `openrouter.ts`, `anthropic.ts`, Python direct `requests`, root guardrail/brief prompts. | `launchkit/adapters/{llm_queue,openrouter}.py`, `generation/contracts.py`, `guardrails/review.py`, `generation/legacy_brief.py`. | Request pacing, retries, provider errors, invalid JSON, code fences, profile fields, guardrail fail-closed behavior, brief flagging/fallback. | HTTPX mock transport and typed generator stubs. | LLM-facing behavior is mockable, provider objects do not escape, and missing credentials fail only when an adapter is constructed. | Stage 2 | Provider response metadata and retry headers vary; normalized errors retain status/provider/retry context. | Keep references. |
 | 7 | **Complete** - image sourcing and registry. | `image-sourcing.ts`, Karim image generation. | `launchkit/images/{registry,sourcing}.py`, `launchkit/adapters/pexels.py`. | Data URI compression/restore, uploaded rotation, placeholder sentinel, Pexels/AI success and failure, catalog rendering. | HTTPX Pexels transport and image generator/search stubs. | Every image spec resolves in order to a real source or panel sentinel; prompt catalogs never require broken image URLs. | Stages 1, 6 | Registry tokens must be resolved after generation; orchestration tests cover that in stage 11. | Keep references. |
 | 8 | **Complete** - v0 lifecycle and archives. | `v0.ts`, `pipeline.py` v0 create/status/download/handoff, Haseeb download wrappers. | `launchkit/adapters/v0.py`, `launchkit/archive/building.py`. | Async create, locked-file init, status pending-on-404, 402 error, ZIP download, handoff privacy, generated HTML archives. | HTTPX mock transport. | v0 and local archive behavior are callable without FastAPI; canonical chats default private while explicit legacy callers can request unlisted. | Stage 6 | Direct v0 ZIP endpoint remains provider-specific and isolated in the adapter. | Keep references. |
 | 9 | **Complete** - storage contract and adapters. | `local_store.py`, `s3_store.py`. | `launchkit/storage/{contracts,local,s3}.py`. | Shared save/get/list/not-found contract, local temp files, injected fake S3, corrupt data, identifier validation. | Injected S3 client. | Local and S3 adapters share one synchronous contract and reuse canonical normalization without import-time clients or environment reads. | Stage 1 | Blocking filesystem/SDK calls must be isolated by future async callers. | Keep references until API integration is verified. |
 | 10 | **Complete** - Vercel claim deployment. | `vercel_deploy.py`. | `launchkit/deployment/{archive,contracts,claim}.py`, `launchkit/adapters/vercel.py`. | ZIP text/binary conversion, ignored metadata, project naming, deployment, transfer code, claim URL. | v0 archive and Vercel gateway stubs; HTTPX mock transport. | Claim deployment is directly callable and fully offline-testable with no credentials at import time. | Stage 8 | Platform billing and stale unclaimed-project cleanup remain product/operations decisions. | Keep reference until API and operations policy are verified. |
-| 11 | Pipeline orchestration. | `site-pipeline.ts`, `pipeline.py`, `generate_site.py`. | `launchkit/generation/service.py`. | End-to-end fake-adapter tests for mockups, plan, Claude HTML, v0-only, both modes, warning propagation. | all external adapters. | Service coordinates capabilities without embedding provider/storage/HTML logic. | Stages 1-10 | Recreating old sequential behavior too literally could preserve accidental coupling. | Keep all references. |
+| 11 | **Complete** - staged generation and final orchestration. | `site-pipeline.ts`, `pipeline.py`, `generate_site.py`. | `launchkit/generation/{briefing,mockups,html_generation,page_builder,site_copy,service}.py`, `launchkit/images/catalogs.py`. | Mockup fallback, HTML retry, planning, home/secondary page behavior, site-copy fallback, Claude/v0/both modes, warning propagation. | Provider-neutral stubs and fake gateways. | `WebsiteGenerationService.generate(request)` coordinates capabilities without provider, storage, deployment, FastAPI, or HTTP concepts. | Stages 1-10 | API composition must reuse these services rather than rebuilding orchestration in routes. | Keep all references through API verification. |
 | 12 | FastAPI transport redesign, deferred. | `main.py`, inspected Haseeb `/app/api` wrappers. | later `launchkit/api/*`. | Request validation and HTTP error mapping only. | generation service fakes. | Thin route layer exists only after business modules are verified. | Stage 11 | Creating endpoints too early will freeze incomplete capability boundaries. | Remove old routes only after replacement is verified. |
 
 ## Recommended Next Migration Capability
 
-Stages 1 through 3 are complete. The next migration group is Stage 4: deterministic
-plan, page, and section transformations. It can establish slug, homepage, section
-ordering, and editable-plan behavior without adding provider or HTTP dependencies.
+Stages 1 through 11 are complete. The next group is Stage 12: thin FastAPI transport
+design. Routes should validate transport input, invoke these typed services, translate
+known exceptions, and return models without duplicating business decisions.
 
 ## Migration Progress
 
@@ -49,6 +49,11 @@ ordering, and editable-plan behavior without adding provider or HTTP dependencie
   navigation removal, favicon injection, and the AOS visibility fallback preserve the
   Haseeb processing order. Karim's numeric Tailwind normalization is available only
   through `normalize_tailwind=True` so it cannot silently rewrite newer output.
+- External adapters: OpenRouter, Pexels, v0, local/S3 storage, and Vercel claim
+  deployment are isolated, typed, injected, and covered without network access.
+- Application workflows: profile extraction, guardrails, legacy briefs, mockups,
+  planning, page builds, archives, handoff/claim, and Claude/v0/both orchestration are
+  directly callable without FastAPI.
 - Verification: Ruff formatting/linting, strict mypy, pytest with at least 90%
   branch coverage, and `git diff --check` are required for every migration commit.
 - References: all three directories under `reference_implementations/` remain
@@ -61,21 +66,28 @@ stages. Treat them as executable reference behavior. Future route work should
 only map HTTP payloads to already-tested Python callables and translate domain
 errors into HTTP responses.
 
-## Unresolved Decisions
+## Final Verification Evidence
 
-- Whether PDF image extraction from Karim's CLI should be kept, deferred, or
-  intentionally dropped in favor of Haseeb's current DOCX-only image extraction.
+The completed Stage 1-11 package passes Ruff formatting and linting, strict mypy,
+`pip check`, and 178 offline pytest cases with 97.75% branch coverage. FastAPI exposes
+only `/openapi.json`, `/docs`, `/docs/oauth2-redirect`, and `/redoc`; no business route
+was introduced. Root legacy files and every `reference_implementations/` file remain
+unchanged on the migration branch.
+
+## Deferred Product Decisions
+
+- PDF image extraction is intentionally excluded; PDF text extraction returns a warning
+  while DOCX text and images are supported.
 - Whether backend PDF brief generation is needed; Haseeb's current PDF route is
   React/PDF transport/reporting code, not core business logic.
-- Whether the final deployment story should support both v0 handoff and Vercel
-  claim deployment, or only one of them.
-- Whether editable page/section planning belongs in backend APIs or remains a
-  frontend-only planning state transformed before build.
+- Both v0 handoff and Vercel claim deployment are available; API/product policy must
+  decide which actions to expose to each caller.
+- Editable drag/drop page state remains frontend-only; APIs should accept canonical
+  `SitePlan` data.
 - Whether Karim's optional HyperUI blueprint and extra section-pattern prompt pack
   should augment the canonical design contract after output-quality comparison.
-- The model-written industry direction and root legacy v0 system prompt remain with
-  the future LLM adapter stage. Their provider behavior and conflicting personal-data
-  policy must be tested before either is connected to canonical prompts.
+- Legacy and canonical brief policies remain intentionally separate. The legacy system
+  and guardrail prompts are protected by source-characterization digests.
 - Karim's AOS fallback also retries Lucide icon initialization, while Haseeb's later
   implementation does not. The canonical fallback follows Haseeb; Lucide lifecycle
   handling remains available in the Karim reference for generator-adapter review.

@@ -1,11 +1,13 @@
 """Legacy v0 brief parsing tests."""
 
 import asyncio
+import hashlib
 from typing import Any
 
 import pytest
 
 from launchkit.generation.legacy_brief import BriefFlagged, LegacyBriefService
+from launchkit.generation.legacy_prompts import LEGACY_V0_SYSTEM_PROMPT
 from launchkit.intake.models import LegacyCompany
 
 
@@ -55,4 +57,10 @@ def test_legacy_brief_raises_flag_and_falls_back_to_plain_text() -> None:
     )
     assert asyncio.run(LegacyBriefService(GeneratorStub("{broken}")).generate(company())) == (
         "{broken}"
+    )
+
+
+def test_legacy_system_prompt_matches_source_digest() -> None:
+    assert hashlib.sha256(LEGACY_V0_SYSTEM_PROMPT.encode()).hexdigest() == (
+        "a0523051806a244270212f53549480c7aebde08c474ed8ad3ac029da2da6deda"
     )

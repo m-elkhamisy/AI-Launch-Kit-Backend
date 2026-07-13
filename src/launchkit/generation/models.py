@@ -3,6 +3,10 @@
 from enum import StrEnum
 
 from launchkit.core.models import AliasedModel
+from launchkit.design.models import DesignPreferences
+from launchkit.intake.models import OnboardingForm
+from launchkit.planning.models import SitePlan
+from launchkit.profiles.models import ExtractedImage
 
 
 class GenerationProvider(StrEnum):
@@ -76,6 +80,15 @@ class V0HandoffResult(AliasedModel):
 class ArchiveDownload(AliasedModel):
     content: bytes
     filename: str
+
+
+class WebsiteGenerationRequest(AliasedModel):
+    form: OnboardingForm
+    design: DesignPreferences
+    provider: GenerationProvider
+    chosen_mockup_html: str
+    plan: SitePlan
+    uploaded_images: list[ExtractedImage]
 
 
 class PipelineResult(AliasedModel):

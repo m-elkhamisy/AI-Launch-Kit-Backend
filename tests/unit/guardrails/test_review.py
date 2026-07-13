@@ -1,10 +1,12 @@
 """Guardrail service and fail-closed parser tests."""
 
 import asyncio
+import hashlib
 from typing import Any
 
 import pytest
 
+from launchkit.generation.legacy_prompts import GUARDRAIL_SYSTEM_PROMPT
 from launchkit.guardrails import GuardrailDecision, GuardrailReviewService, parse_guardrail_result
 
 
@@ -39,3 +41,9 @@ def test_guardrail_parser_fails_closed(response: str) -> None:
 
     assert result.decision is GuardrailDecision.REJECT
     assert result.categories == ["unparseable_guardrail_response"]
+
+
+def test_guardrail_prompt_matches_source_digest() -> None:
+    assert hashlib.sha256(GUARDRAIL_SYSTEM_PROMPT.encode()).hexdigest() == (
+        "2652cd3b1b462d4cbfa6fa82c842dfa7ae3c5ab5121b4430e95fbae0596721de"
+    )

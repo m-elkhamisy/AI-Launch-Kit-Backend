@@ -5,7 +5,7 @@ import re
 from collections.abc import Sequence
 
 from launchkit.core.exceptions import DomainError
-from launchkit.design.models import DesignPreferences, ImageSource
+from launchkit.design.models import DesignPreferences
 from launchkit.generation.contracts import ImageGenerator, ImageSearch
 from launchkit.generation.html_generation import HtmlGenerationService
 from launchkit.generation.models import BuiltPage, PageBuildResult
@@ -15,9 +15,9 @@ from launchkit.generation.prompts import (
     build_page_summary,
 )
 from launchkit.html import postprocess_html
-from launchkit.images import ImageRegistry, render_image_catalog, source_images_for_page
+from launchkit.images import ImageCatalogService, ImageRegistry
 from launchkit.intake.models import OnboardingForm
-from launchkit.planning.models import PlannedPage, PlannedPageImage, SitePlan
+from launchkit.planning.models import PlannedPage, SitePlan
 from launchkit.profiles.models import ExtractedImage
 
 ORDER_KEYWORDS = (
@@ -45,8 +45,10 @@ class PageBuildService:
         secondary_concurrency: int = 2,
     ) -> None:
         self._html_generator = html_generator
-        self._image_generator = image_generator
-        self._image_search = image_search
+        self._catalogs = ImageCatalogService(
+            image_generator=image_generator,
+            image_search=image_search,
+        )
         self._secondary_concurrency = max(1, secondary_concurrency)
 
     async def build(
@@ -61,7 +63,7 @@ class PageBuildService:
         if not plan.pages:
             raise DomainError("Cannot build a website without planned pages")
         registry = ImageRegistry()
-        catalogs = await self._build_image_catalogs(form, design, plan, uploaded_images, registry)
+        catalogs = await self._catalogs.build(form, design, plan, uploaded_images, registry)
         compressed_mockup = registry.compress(chosen_mockup_html)
         logo = next(
             (image.data_url for image in uploaded_images if "logo" in image.label.lower()),
@@ -136,40 +138,6 @@ class PageBuildService:
         pages.extend(page for page, _warning in outcomes if page is not None)
         warnings = [warning for _page, warning in outcomes if warning is not None]
         return PageBuildResult(pages=pages, warnings=warnings)
-
-    async def _build_image_catalogs(
-        self,
-        form: OnboardingForm,
-        design: DesignPreferences,
-        plan: SitePlan,
-        uploaded_images: Sequence[ExtractedImage],
-        registry: ImageRegistry,
-    ) -> dict[str, str]:
-        offset = 0
-        catalogs: dict[str, str] = {}
-        for page in plan.pages:
-            specs = page.images
-            if design.image_source is not ImageSource.PLACEHOLDER and not specs:
-                section = page.sections[0] if page.sections else "main section"
-                specs = [
-                    PlannedPageImage(
-                        section=section,
-                        desc=f"{form.industry} - photo for the {page.name} page ({section})",
-                    )
-                ]
-            sourced = await source_images_for_page(
-                specs,
-                image_source=design.image_source,
-                industry=form.industry,
-                company_name=form.company_name,
-                uploaded=uploaded_images,
-                uploaded_offset=offset,
-                image_generator=self._image_generator,
-                image_search=self._image_search,
-            )
-            offset += len(specs)
-            catalogs[page.name] = render_image_catalog(sourced, registry)
-        return catalogs
 
     @staticmethod
     def _find_order_page(pages: Sequence[PlannedPage]) -> PlannedPage:
