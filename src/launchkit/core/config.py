@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     generation_model: str = "anthropic/claude-sonnet-5"
     utility_model: str | None = None
     image_model: str = "google/gemini-2.5-flash-image"
+    pexels_api_key: SecretStr | None = None
+    pexels_base_url: str = "https://api.pexels.com/v1"
     openrouter_max_concurrent: int = Field(default=2, ge=1)
     openrouter_min_request_gap_ms: int = Field(default=250, ge=0)
     openrouter_sequential: bool = False
