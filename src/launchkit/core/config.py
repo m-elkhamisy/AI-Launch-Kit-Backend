@@ -44,6 +44,10 @@ class Settings(BaseSettings):
     s3_bucket: str | None = None
     s3_prefix: str = "submissions/"
     aws_region: str = "me-central-1"
+    vercel_token: SecretStr | None = None
+    vercel_team_id: str | None = None
+    vercel_base_url: str = "https://api.vercel.com"
+    claim_return_url: str = "http://localhost:8000/"
 
 
 @lru_cache

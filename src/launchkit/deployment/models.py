@@ -18,3 +18,15 @@ class DeploymentResult(AliasedModel):
     claim_url: str
     claim_expires: str = "24 hours"
     note: str
+
+
+class DeploymentFile(AliasedModel):
+    file: str
+    data: str
+    encoding: str | None = None
+
+
+class VercelDeployment(AliasedModel):
+    project_id: str
+    deployment_id: str | None
+    url: str | None
