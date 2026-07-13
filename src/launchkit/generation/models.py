@@ -30,6 +30,11 @@ class MockupDesign(AliasedModel):
     html: str
 
 
+class MockupGenerationResult(AliasedModel):
+    mockups: list[MockupDesign]
+    brief: str
+
+
 class SiteCopySection(AliasedModel):
     heading: str
     body: str
@@ -47,6 +52,11 @@ class BuiltPage(AliasedModel):
     slug: str
     filename: str
     html: str
+
+
+class PageBuildResult(AliasedModel):
+    pages: list[BuiltPage]
+    warnings: list[str]
 
 
 class V0GenerationResult(AliasedModel):
