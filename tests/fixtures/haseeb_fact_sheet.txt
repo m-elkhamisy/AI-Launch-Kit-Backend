@@ -1,0 +1,28 @@
+IDENTITY (verified, use as-is):
+  - Company: Northstar Labs
+  - Industry: Technology
+  - Activity classification: 6201
+  - What the business does: Workflow automation for regional businesses
+
+AUDIENCE & POSITIONING (verified, use as-is):
+  - Target audience: Operations teams
+  - Unique value proposition: Launch reliable workflows quickly
+  - Competitors to differentiate from: Large enterprise suites
+  - Purpose of this site: Generate qualified leads
+
+PROOF & STATS (verified, use as-is):
+  - Stats / achievements: Deployed in 12 customer teams
+
+PRACTICAL DETAILS (verified, use as-is):
+  - Products / services: Automation assessment and implementation
+  - Location & hours: Dubai, Monday to Friday
+  - Service area: United Arab Emirates
+  - Contact details: hello@northstar.example
+
+VOICE (verified, use as-is):
+  - Tone: Clear and confident
+  - Aesthetic notes: Modern and restrained
+
+ADDITIONAL CONTEXT (verified, use as-is):
+  - Description: Northstar helps teams remove repetitive work.
+  - Notes / must-haves: Avoid unsupported performance claims.
