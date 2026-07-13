@@ -9,6 +9,7 @@ description = "Backend capabilities for the AI Launch Kit website generator"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "boto3>=1.35,<2",
     "fastapi>=0.115,<1",
     "httpx>=0.28,<1",
     "pydantic>=2.10,<3",

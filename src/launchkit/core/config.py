@@ -1,6 +1,7 @@
 """Environment-backed application configuration."""
 
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic import Field, SecretStr
@@ -39,6 +40,10 @@ class Settings(BaseSettings):
     v0_api_key: SecretStr | None = None
     v0_base_url: str = "https://api.v0.dev/v1"
     v0_model: str = "v0-max"
+    local_data_dir: Path = Path("local_data")
+    s3_bucket: str | None = None
+    s3_prefix: str = "submissions/"
+    aws_region: str = "me-central-1"
 
 
 @lru_cache

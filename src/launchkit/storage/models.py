@@ -14,3 +14,8 @@ class StoredSubmission(PythonSourceModel):
     id: str
     raw: dict[str, Any]
     normalized: LegacyCompany
+
+
+class RawSubmissionRecord(PythonSourceModel):
+    id: str
+    data: dict[str, Any]
