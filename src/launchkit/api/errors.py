@@ -10,8 +10,10 @@ from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from launchkit.assets import UploadTooLargeError, UploadValidationError
 from launchkit.core.exceptions import ConfigurationError, DomainError, ProviderError
 from launchkit.projects import ProjectNotFoundError
+from launchkit.workflows import WorkflowNotFoundError
 
 
 def request_id(request: Request) -> str:
@@ -79,6 +81,12 @@ def register_error_handlers(app: FastAPI) -> None:
             request, status_code=404, code="project_not_found", message="Project not found."
         )
 
+    @app.exception_handler(WorkflowNotFoundError)
+    async def handle_workflow_not_found(request: Request, _: WorkflowNotFoundError) -> JSONResponse:
+        return error_response(
+            request, status_code=404, code="resource_not_found", message="Resource not found."
+        )
+
     @app.exception_handler(ConfigurationError)
     async def handle_configuration(request: Request, _: ConfigurationError) -> JSONResponse:
         return error_response(
@@ -87,6 +95,16 @@ def register_error_handlers(app: FastAPI) -> None:
             code="provider_configuration_missing",
             message="This service is not configured.",
         )
+
+    @app.exception_handler(UploadTooLargeError)
+    async def handle_upload_too_large(request: Request, exc: UploadTooLargeError) -> JSONResponse:
+        return error_response(request, status_code=413, code="upload_too_large", message=str(exc))
+
+    @app.exception_handler(UploadValidationError)
+    async def handle_upload_validation(
+        request: Request, exc: UploadValidationError
+    ) -> JSONResponse:
+        return error_response(request, status_code=422, code="invalid_upload", message=str(exc))
 
     @app.exception_handler(ProviderError)
     async def handle_provider(request: Request, exc: ProviderError) -> JSONResponse:

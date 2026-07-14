@@ -8,6 +8,7 @@ from launchkit.core.exceptions import DomainError
 from launchkit.persistence.models import ProjectRecord
 from launchkit.persistence.repositories import PersistenceRepository
 from launchkit.projects.models import ProjectDraft, ProjectPatch, ProjectView
+from launchkit.workflows.service import assets_view, mockups_view
 
 
 class ProjectNotFoundError(DomainError):
@@ -27,10 +28,10 @@ class ProjectService:
             page_layout=draft.page_layout.model_dump(by_alias=True),
         )
         await self._repository.commit()
-        return self._view(record)
+        return await self._view(record)
 
     async def get(self, project_id: str) -> ProjectView:
-        return self._view(await self._record(project_id))
+        return await self._view(await self._record(project_id))
 
     async def patch(self, project_id: str, patch: ProjectPatch) -> ProjectView:
         record = await self._record(project_id)
@@ -49,7 +50,7 @@ class ProjectService:
         record.page_layout = validated.page_layout.model_dump(by_alias=True)
         await self._repository.commit()
         await self._repository.refresh(record)
-        return self._view(record)
+        return await self._view(record)
 
     async def _record(self, project_id: str) -> ProjectRecord:
         record = await self._repository.get_project(project_id, self._owner_id)
@@ -64,8 +65,13 @@ class ProjectService:
         values = patch.model_dump(by_alias=True, exclude_unset=True)
         return {**current, **values}
 
-    @staticmethod
-    def _view(record: ProjectRecord) -> ProjectView:
+    async def _view(self, record: ProjectRecord) -> ProjectView:
+        assets = [
+            asset
+            for asset in await self._repository.list_assets(record.id)
+            if asset.kind in {"profile_source", "profile_image"}
+        ]
+        mockups = await self._repository.list_mockups(record.id)
         return ProjectView.model_validate(
             {
                 "id": record.id,
@@ -74,6 +80,8 @@ class ProjectService:
                 "design": record.design,
                 "pageLayout": record.page_layout,
                 "extractedProfileFields": record.extracted_profile_fields,
+                "uploadedAssets": assets_view(assets),
+                "mockups": mockups_view(mockups),
                 "selectedMockupId": record.selected_mockup_id,
                 "latestBuildId": record.latest_build_id,
                 "latestDeploymentId": record.latest_deployment_id,

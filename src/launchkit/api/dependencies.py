@@ -6,9 +6,11 @@ from typing import Annotated, cast
 from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from launchkit.assets import AssetBlobStore
 from launchkit.core.config import Settings
 from launchkit.persistence import Database, PersistenceRepository
 from launchkit.projects import ProjectService
+from launchkit.workflows import WorkflowService
 
 
 def get_request_settings(request: Request) -> Settings:
@@ -32,5 +34,16 @@ def get_project_service(
     return ProjectService(PersistenceRepository(session), owner_id)
 
 
+def get_workflow_service(
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    owner_id: Annotated[str, Depends(get_current_user_id)],
+    settings: Annotated[Settings, Depends(get_request_settings)],
+) -> WorkflowService:
+    store = cast(AssetBlobStore, request.app.state.asset_store)
+    return WorkflowService(PersistenceRepository(session), owner_id, settings, store)
+
+
 SettingsDependency = Annotated[Settings, Depends(get_request_settings)]
 ProjectServiceDependency = Annotated[ProjectService, Depends(get_project_service)]
+WorkflowServiceDependency = Annotated[WorkflowService, Depends(get_workflow_service)]

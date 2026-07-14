@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     worker_poll_seconds: float = Field(default=1.0, gt=0)
     worker_lease_seconds: int = Field(default=120, ge=10)
     worker_batch_size: int = Field(default=10, ge=1, le=100)
+    upload_max_bytes: int = Field(default=20 * 1024 * 1024, ge=1024)
     openrouter_api_key: SecretStr | None = None
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     site_url: str = "http://localhost:8000"
@@ -50,6 +51,7 @@ class Settings(BaseSettings):
     local_data_dir: Path = Path("local_data")
     s3_bucket: str | None = None
     s3_prefix: str = "submissions/"
+    s3_asset_prefix: str = "assets/"
     aws_region: str = "me-central-1"
     vercel_token: SecretStr | None = None
     vercel_team_id: str | None = None

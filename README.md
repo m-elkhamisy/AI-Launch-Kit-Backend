@@ -10,7 +10,7 @@ websites from company intake data. The production package uses a Python 3.12 src
 - Business workflows are directly callable without FastAPI or HTTP.
 - OpenRouter, Pexels, v0, S3, and Vercel are isolated behind adapters and are tested
   offline with fakes or mock transports.
-- FastAPI exposes V1 health, wizard catalog, and persisted project draft endpoints.
+- FastAPI exposes V1 project drafts, profile extraction, mockup operations, and previews.
 - PostgreSQL, Alembic, and a durable database-backed worker provide the workflow foundation.
 
 ## Project Structure

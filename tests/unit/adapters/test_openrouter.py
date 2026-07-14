@@ -72,22 +72,30 @@ def test_generate_json_image_label_and_profile_fields() -> None:
                     '"designHints":{"tagline":"Clear","cta":"Call"}}'
                 }
             ),
+            response(
+                {
+                    "content": '```json\n{"fields":{"companyName":"Visual Co"},'
+                    '"designHints":{"tagline":"","cta":"Visit"}}\n```'
+                }
+            ),
         ]
     )
     adapter = adapter_for(httpx.MockTransport(lambda _request: next(replies)))
 
-    async def scenario() -> tuple[object, str, str, str | None]:
+    async def scenario() -> tuple[object, str, str, str | None, str | None]:
         payload = await adapter.generate_json("json")
         image = await adapter.generate_image("image")
         label = await adapter.label_image("data:image/png;base64,abc")
         fields = await adapter.extract_profile_fields("profile")
-        return payload, image, label, fields.fields.company_name
+        visual = await adapter.extract_profile_image_fields("data:image/png;base64,abc")
+        return payload, image, label, fields.fields.company_name, visual.fields.company_name
 
     assert asyncio.run(scenario()) == (
         {"value": 2},
         "data:image/png;base64,abc",
         "logo",
         "Acme",
+        "Visual Co",
     )
 
 

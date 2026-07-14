@@ -9,12 +9,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from launchkit.api import api_router
 from launchkit.api.errors import register_error_handlers
 from launchkit.api.middleware import RequestIdMiddleware
+from launchkit.assets import AssetBlobStore, create_asset_store
 from launchkit.core.config import Settings, get_settings
 from launchkit.core.logging import configure_logging
 from launchkit.persistence import Database, create_database
 
 
-def create_app(settings: Settings | None = None, database: Database | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None,
+    database: Database | None = None,
+    asset_store: AssetBlobStore | None = None,
+) -> FastAPI:
     """Compose transport dependencies without requiring optional provider credentials."""
 
     resolved_settings = settings or get_settings()
@@ -23,8 +28,10 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         resolved_database = database or create_database(resolved_settings)
+        resolved_asset_store = asset_store or create_asset_store(resolved_settings)
         application.state.settings = resolved_settings
         application.state.database = resolved_database
+        application.state.asset_store = resolved_asset_store
         try:
             yield
         finally:

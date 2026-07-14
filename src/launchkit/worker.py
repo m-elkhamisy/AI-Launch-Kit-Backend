@@ -6,13 +6,16 @@ import socket
 import uuid
 from collections.abc import Awaitable, Callable
 
+import httpx
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from launchkit.assets import create_asset_store
 from launchkit.core.config import Settings, get_settings
 from launchkit.core.logging import configure_logging
 from launchkit.persistence import PersistenceRepository, create_database
 from launchkit.persistence.models import JobRecord
+from launchkit.workflows.handlers import create_workflow_job_handlers
 
 JobHandler = Callable[[JobRecord, AsyncSession], Awaitable[None]]
 
@@ -78,12 +81,16 @@ class Worker:
 async def _main(once: bool) -> None:
     settings = get_settings()
     configure_logging(settings)
-    worker = Worker(settings)
-    if once:
-        await worker.run_once()
-        await worker.close()
-    else:
-        await worker.run_forever()
+    asset_store = create_asset_store(settings)
+    timeout = httpx.Timeout(120, connect=10)
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        runtime = create_workflow_job_handlers(settings, client, asset_store)
+        worker = Worker(settings, handlers=runtime.handlers)
+        if once:
+            await worker.run_once()
+            await worker.close()
+        else:
+            await worker.run_forever()
 
 
 def main() -> None:
