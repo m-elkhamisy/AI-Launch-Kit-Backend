@@ -1,9 +1,7 @@
 # AI Launch Kit Backend
 
-Python backend capabilities for generating multi-page marketing websites from
-company intake data. The production package uses a Python 3.12 src layout. FastAPI
-is currently a transport shell only. Migration stages 1-11 are complete, and the
-callable business layer is ready for thin API routes in Stage 12.
+Python backend capabilities and a persisted V1 API for generating multi-page marketing
+websites from company intake data. The production package uses a Python 3.12 src layout.
 
 ## Current Status
 
@@ -12,17 +10,20 @@ callable business layer is ready for thin API routes in Stage 12.
 - Business workflows are directly callable without FastAPI or HTTP.
 - OpenRouter, Pexels, v0, S3, and Vercel are isolated behind adapters and are tested
   offline with fakes or mock transports.
-- FastAPI exposes documentation routes only; business endpoints are the next phase.
+- FastAPI exposes V1 health, wizard catalog, and persisted project draft endpoints.
+- PostgreSQL, Alembic, and a durable database-backed worker provide the workflow foundation.
 
 ## Project Structure
 
 ```text
 src/launchkit/             Production package
+  api/                     Versioned FastAPI transport, errors, and dependencies
   core/                    Settings, logging, and shared exceptions
   intake/                  Intake models and normalization
   grounding/               Verified fact sheets and factual-discipline rules
   design/                  Design preferences, presets, and token resolution
   planning/                Site plans and customer-readable plan rendering
+  projects/                Wizard catalogs, project contracts, and application service
   generation/              Brief, mockup, page-build, and provider-mode orchestration
   images/                  Image sourcing, catalogs, and prompt-safe registry
   html/                    Generated HTML repair and document injections
@@ -61,11 +62,16 @@ From the repository root on Windows PowerShell:
 py -3.12 -m venv .venv
 .venv\Scripts\python.exe -m pip install -e ".[dev]"
 Copy-Item .env.example .env
+docker compose up -d postgres
+.venv\Scripts\python.exe -m alembic upgrade head
 .venv\Scripts\python.exe -m uvicorn launchkit.main:app --app-dir src --reload
 ```
 
-The OpenAPI documentation is available at `http://127.0.0.1:8000/docs`. No
-business routes are exposed in the current migration phase.
+Alternatively, `docker compose up --build` runs PostgreSQL, migrations, the API, and
+the durable worker together. Set `LAUNCHKIT_POSTGRES_PORT` when host port 5432 is in use.
+
+The OpenAPI documentation is available at `http://127.0.0.1:8000/docs`. See
+[`docs/api-v1.md`](docs/api-v1.md) for the implemented contracts and frontend mapping.
 
 ## Quality Checks
 

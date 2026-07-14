@@ -97,3 +97,6 @@ class PersistenceRepository:
 
     async def commit(self) -> None:
         await self._session.commit()
+
+    async def refresh(self, record: object) -> None:
+        await self._session.refresh(record)
