@@ -1,0 +1,887 @@
+### HERO / SPLIT SECTION (variant 1)
+<section>
+ <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+ <div class="grid grid-cols-1 gap-4 md:grid-cols-2 md:items-center md:gap-8">
+ <div>
+ <div class="max-w-prose md:max-w-none">
+ <h2 class="text-2xl font-semibold text-gray-900 sm:text-3xl">
+ [copy]</h2>
+ <p class="mt-4 text-pretty text-gray-700">
+ [copy]nderit voluptas
+ sequi.
+ </p>
+ </div>
+ </div>
+ <div>
+ <img
+ src="https://images.unsplash.com/photo-1731690415686-e68f78e2b5bd?auto=format&fit=crop&q=80&w=1160"
+ class="rounded"
+ alt=""
+ />
+ </div>
+ </div>
+ </div>
+ </section>
+
+### HERO / SPLIT SECTION (variant 2)
+<section>
+ <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+ <div class="grid grid-cols-1 gap-4 md:grid-cols-4 md:items-center md:gap-8">
+ <div class="md:col-span-1">
+ <div class="max-w-prose md:max-w-none">
+ <h2 class="text-2xl font-semibold text-gray-900 sm:text-3xl">
+ [copy]</h2>
+ <p class="mt-4 text-pretty text-gray-700">
+ [copy]nderit voluptas
+ sequi.
+ </p>
+ </div>
+ </div>
+ <div class="md:col-span-3">
+ <img
+ src="https://images.unsplash.com/photo-1731690415686-e68f78e2b5bd?auto=format&fit=crop&q=80&w=1160"
+ class="rounded"
+ alt=""
+ />
+ </div>
+ </div>
+ </div>
+ </section>
+
+### HERO / SPLIT SECTION (variant 3)
+<section>
+ <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+ <div class="grid grid-cols-1 gap-4 md:grid-cols-4 md:items-center md:gap-8">
+ <div class="md:col-span-3">
+ <img
+ src="https://images.unsplash.com/photo-1731690415686-e68f78e2b5bd?auto=format&fit=crop&q=80&w=1160"
+ class="rounded"
+ alt=""
+ />
+ </div>
+ <div class="md:col-span-1">
+ <div class="max-w-prose md:max-w-none">
+ <h2 class="text-2xl font-semibold text-gray-900 sm:text-3xl">
+ [copy]</h2>
+ <p class="mt-4 text-pretty text-gray-700">
+ [copy]nderit voluptas
+ sequi.
+ </p>
+ </div>
+ </div>
+ </div>
+ </div>
+ </section>
+
+### CTA BAND (variant 1)
+<section class="overflow-hidden bg-gray-50 sm:grid sm:grid-cols-2">
+ <div class="p-8 md:p-12 lg:px-16 lg:py-24">
+ <div class="mx-auto max-w-xl text-center ltr:sm:text-left rtl:sm:text-right">
+ <h2 class="text-2xl font-bold text-gray-900 md:text-3xl">
+ Lorem, ipsum dolor sit amet consectetur adipisicing elit
+ </h2>
+ <p class="hidden text-gray-500 md:mt-4 md:block">
+ [copy], augue. Aliquet amet
+ volutpat quisque ut interdum tincidunt duis.
+ </p>
+ <div class="mt-4 md:mt-8">
+ <a
+ href="#"
+ class="inline-block rounded-sm bg-emerald-600 px-12 py-3 text-sm font-medium text-white transition hover:bg-emerald-700 focus:ring-2 focus:ring-yellow-400 focus:outline-hidden"
+ >
+ Get Started Today
+ </a>
+ </div>
+ </div>
+ </div>
+ <img
+ alt=""
+ src="https://images.unsplash.com/photo-1464582883107-8adf2dca8a9f
+<!-- ...follow this structure -->
+
+### CTA BAND (variant 2)
+<section class="bg-gray-50">
+ <div class="p-8 md:p-12 lg:px-16 lg:py-24">
+ <div class="mx-auto max-w-lg text-center">
+ <h2 class="text-2xl font-bold text-gray-900 md:text-3xl">
+ Lorem, ipsum dolor sit amet consectetur adipisicing elit
+ </h2>
+ <p class="hidden text-gray-500 sm:mt-4 sm:block">
+ [copy] exercitationem incidunt
+ tempora nisi?
+ </p>
+ </div>
+ <div class="mx-auto mt-8 max-w-xl">
+ <form action="#" class="sm:flex sm:gap-4">
+ <div class="sm:flex-1">
+ <label for="email" class="sr-only">Email</label>
+ <input
+ type="email"
+ placeholder="Email address"
+ class="w-full rounded-md border-gray-200 bg-white p-3 text-gray-700 shadow-xs transition focus:border-white focus:ring-2 focus:ring-yellow-400 focus:outline-hidden"
+ />
+ </div>
+ <button
+ type="submit"
+ class="group mt-4 flex w-full items-
+<!-- ...follow this structure -->
+
+### CTA BAND (variant 3)
+<section class="overflow-hidden bg-gray-50 sm:grid sm:grid-cols-2 sm:items-center">
+ <div class="p-8 md:p-12 lg:px-16 lg:py-24">
+ <div class="mx-auto max-w-xl text-center ltr:sm:text-left rtl:sm:text-right">
+ <h2 class="text-2xl font-bold text-gray-900 md:text-3xl">
+ Lorem, ipsum dolor sit amet consectetur adipisicing elit
+ </h2>
+ <p class="hidden text-gray-500 md:mt-4 md:block">
+ [copy], augue. Aliquet amet
+ volutpat quisque ut interdum tincidunt duis.
+ </p>
+ <div class="mt-4 md:mt-8">
+ <a
+ href="#"
+ class="inline-block rounded-sm bg-emerald-600 px-12 py-3 text-sm font-medium text-white transition hover:bg-emerald-700 focus:ring-2 focus:ring-yellow-400 focus:outline-hidden"
+ >
+ Get Started Today
+ </a>
+ </div>
+ </div>
+ </div>
+ <img
+ alt=""
+ src="https://images.unsplash.com/photo-1484959014
+<!-- ...follow this structure -->
+
+### FEATURE GRID (variant 1)
+<div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+ <div class="mx-auto max-w-lg text-center">
+ <h2 class="text-3xl/tight font-bold text-gray-900 sm:text-4xl">Features for growth</h2>
+ <p class="mt-4 text-lg text-pretty text-gray-700">
+ [copy]t.
+ </p>
+ </div>
+ <div class="mt-8 grid grid-cols-1 gap-8 md:grid-cols-3">
+ <div class="rounded-lg border border-gray-200 p-6">
+ <div class="inline-flex rounded-lg bg-gray-100 p-3 text-gray-700">
+ <svg
+ aria-hidden="true"
+ xmlns="http://www.w3.org/2000/svg"
+ fill="none"
+ viewBox="0 0 24 24"
+ stroke-width="1.5"
+ stroke="currentColor"
+ class="size-6"
+ >
+ <path
+ stroke-linecap="round"
+ stroke-linejoin="round"
+ d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z"
+ />
+ </svg>
+ </div>
+ <h3 class="mt-4 text-lg font-semibold text-gray-900">H
+<!-- ...follow this structure -->
+
+### FEATURE GRID (variant 2)
+<div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+ <div class="grid grid-cols-1 gap-8 md:grid-cols-2">
+ <div class="col-span-1">
+ <h2 class="text-3xl/tight font-bold text-gray-900 sm:text-4xl">Features for growth</h2>
+ <p class="mt-4 text-lg text-pretty text-gray-700">
+ [copy]t.
+ </p>
+ </div>
+ <div class="space-y-6">
+ <div class="flex items-start gap-4">
+ <div class="shrink-0 rounded-lg bg-gray-100 p-3 text-gray-700">
+ <svg
+ aria-hidden="true"
+ xmlns="http://www.w3.org/2000/svg"
+ fill="none"
+ viewBox="0 0 24 24"
+ stroke-width="1.5"
+ stroke="currentColor"
+ class="size-6"
+ >
+ <path
+ stroke-linecap="round"
+ stroke-linejoin="round"
+ d="M3.75 3v11.25A2.25 2.25 0 0 0 6 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0 1 18 16.5h-2.25m-7.5 0h7.5m-7.5 0-1 3m8.5-3 1 3m0 0 
+<!-- ...follow this structure -->
+
+### FEATURE GRID (variant 3)
+<div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+ <div class="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
+ <div class="text-center">
+ <div class="inline-flex rounded-lg bg-gray-100 p-3 text-gray-700">
+ <svg
+ aria-hidden="true"
+ xmlns="http://www.w3.org/2000/svg"
+ fill="none"
+ viewBox="0 0 24 24"
+ stroke-width="1.5"
+ stroke="currentColor"
+ class="size-6"
+ >
+ <path
+ stroke-linecap="round"
+ stroke-linejoin="round"
+ d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z"
+ />
+ </svg>
+ </div>
+ <h3 class="mt-4 text-lg font-semibold text-gray-900">High performance</h3>
+ <p class="mt-2 text-pretty text-gray-700">Optimized load times</p>
+ </div>
+ <div class="text-center">
+ <div class="inline-flex rounded-lg bg-gray-100 p-3 text-gray-700">
+ <svg
+ aria-hidden="true"
+ xmlns=
+<!-- ...follow this structure -->
+
+### CARD GRID (variant 1)
+<a href="#" class="block rounded-md border border-gray-300 p-4 shadow-sm sm:p-6">
+ <div class="sm:flex sm:justify-between sm:gap-4 lg:gap-6">
+ <div class="sm:order-last sm:shrink-0">
+ <img
+ alt=""
+ src="https://images.unsplash.com/photo-1633332755192-727a05c4013d?auto=format&fit=crop&q=80&w=1160"
+ class="size-16 rounded-full object-cover sm:size-18"
+ />
+ </div>
+ <div class="mt-4 sm:mt-0">
+ <h3 class="text-lg font-medium text-pretty text-gray-900">
+ How I built my first website with Nuxt, Tailwind CSS and Vercel
+ </h3>
+ <p class="mt-1 text-sm text-gray-700">By John Doe</p>
+ <p class="mt-4 line-clamp-2 text-sm text-pretty text-gray-700">
+ [copy]</p>
+ </div>
+ </div>
+ <dl class="mt-6 flex gap-4 lg:gap-6">
+ <div class="flex items-center gap-2">
+ <dt class="text-gray-700">
+ <span class="sr-only"
+<!-- ...follow this structure -->
+
+### CARD GRID (variant 2)
+<a href="#" class="block">
+ <img
+ alt=""
+ src="https://images.unsplash.com/photo-1605721911519-3dfeb3be25e7?auto=format&fit=crop&q=80&w=1160"
+ class="h-64 w-full object-cover sm:h-80 lg:h-96"
+ />
+ <h3 class="mt-4 text-lg font-bold text-gray-900 sm:text-xl">Lorem, ipsum dolor.</h3>
+ <p class="mt-2 max-w-sm text-gray-700">
+ [copy]</p>
+ </a>
+
+### CARD GRID (variant 3)
+<a href="#" class="group relative block bg-black">
+ <img
+ alt=""
+ src="https://images.unsplash.com/photo-1603871165848-0aa92c869fa1?auto=format&fit=crop&q=80&w=1160"
+ class="absolute inset-0 h-full w-full object-cover opacity-75 transition-opacity group-hover:opacity-50"
+ />
+ <div class="relative p-4 sm:p-6 lg:p-8">
+ <p class="text-sm font-medium tracking-widest text-pink-500 uppercase">Developer</p>
+ <p class="text-xl font-bold text-white sm:text-2xl">Tony Wayne</p>
+ <div class="mt-32 sm:mt-48 lg:mt-64">
+ <div
+ class="translate-y-8 transform opacity-0 transition-all group-hover:translate-y-0 group-hover:opacity-100"
+ >
+ <p class="text-sm text-white">
+ [copy]arum.
+ Repudiandae?
+ </p>
+ </div>
+ </div>
+ </div>
+ </a>
+
+### PRICING TIERS (variant 1)
+<div class="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
+ <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-center md:gap-8">
+ <div
+ class="rounded-2xl border border-indigo-600 p-6 shadow-xs ring-1 ring-indigo-600 sm:order-last sm:px-8 lg:p-12"
+ >
+ <div class="text-center">
+ <h2 class="text-lg font-medium text-gray-900">
+ Pro
+ <span class="sr-only">Plan</span>
+ </h2>
+ <p class="mt-2 sm:mt-4">
+ <strong class="text-3xl font-bold text-gray-900 sm:text-4xl"> 30$ </strong>
+ <span class="text-sm font-medium text-gray-700">/month</span>
+ </p>
+ </div>
+ <ul class="mt-6 space-y-2">
+ <li class="flex items-center gap-1">
+ <svg
+ aria-hidden="true"
+ xmlns="http://www.w3.org/2000/svg"
+ fill="none"
+ viewBox="0 0 24 24"
+ stroke-width="1.5"
+ stroke="currentColor"
+ class="size-5 text-indig
+<!-- ...follow this structure -->
+
+### PRICING TIERS (variant 2)
+<div class="max-w-7xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8 lg:py-16">
+ <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-stretch md:grid-cols-3 md:gap-8">
+ <div class="divide-y divide-gray-200 rounded-2xl border border-gray-200 shadow-xs">
+ <div class="p-6 sm:px-8">
+ <h2 class="text-lg font-medium text-gray-900">
+ Starter
+ <span class="sr-only">Plan</span>
+ </h2>
+ <p class="mt-2 text-pretty text-gray-700">
+ [copy]</p>
+ <p class="mt-2 sm:mt-4">
+ <strong class="text-3xl font-bold text-gray-900 sm:text-4xl"> 20$ </strong>
+ <span class="text-sm font-medium text-gray-700">/month</span>
+ </p>
+ <a
+ class="mt-4 block rounded-sm border border-indigo-600 bg-indigo-600 px-12 py-3 text-center text-sm font-medium text-white hover:bg-transparent hover:text-indigo-600 sm:mt-6"
+ href="#"
+ >
+ Get St
+<!-- ...follow this structure -->
+
+### TEAM (variant 1)
+<div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+ <div class="grid grid-cols-1 gap-8 md:grid-cols-3">
+ <div>
+ <img
+ src="https://images.unsplash.com/photo-1633332755192-727a05c4013d?auto=format&fit=crop&q=80&w=1160"
+ alt=""
+ class="aspect-video rounded-lg object-cover"
+ />
+ <div class="mt-4 flex items-center justify-between gap-4">
+ <div>
+ <h3 id="TeamMember1Name" class="text-lg/tight font-semibold text-gray-900">
+ Eric Johnson
+ </h3>
+ <p class="mt-0.5 text-sm text-gray-700">Product Designer</p>
+ </div>
+ <a
+ href="#"
+ target="_blank"
+ rel="noreferrer"
+ class="text-[#0072b1] transition-opacity hover:opacity-90"
+ aria-labelledby="TeamMember1Name LinkedInLabel1"
+ >
+ <span id="LinkedInLabel1" class="sr-only">LinkedIn</span>
+ <svg viewBox="0 0 20 20" fill="currentColor" class="size-7" 
+<!-- ...follow this structure -->
+
+### TEAM (variant 2)
+<div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+ <div class="grid grid-cols-1 gap-8 md:grid-cols-3">
+ <div>
+ <img
+ src="https://images.unsplash.com/photo-1633332755192-727a05c4013d?auto=format&fit=crop&q=80&w=1160"
+ alt=""
+ class="aspect-video rounded-lg object-cover"
+ />
+ <div class="mt-4">
+ <div class="flex items-center justify-between gap-4">
+ <div>
+ <h3 id="TeamMember1Name" class="text-lg/tight font-semibold text-gray-900">
+ Eric Johnson
+ </h3>
+ <p class="mt-0.5 text-sm text-gray-700">Product Designer</p>
+ </div>
+ <a
+ href="#"
+ target="_blank"
+ rel="noreferrer"
+ class="text-[#0072b1] transition-opacity hover:opacity-90"
+ aria-labelledby="TeamMember1Name LinkedInLabel1"
+ >
+ <span id="LinkedInLabel1" class="sr-only">LinkedIn</span>
+ <svg viewBox="0 0 20 20" fill="currentColor" 
+<!-- ...follow this structure -->
+
+### STATS STRIP (variant 1)
+<div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
+ <div class="mx-auto max-w-3xl text-center">
+ <h2 class="text-3xl font-bold text-gray-900 sm:text-4xl">
+ Trusted by eCommerce Businesses
+ </h2>
+ <p class="mt-4 text-gray-500 sm:text-xl">
+ [copy]</p>
+ </div>
+ <dl class="mt-6 grid grid-cols-1 gap-4 sm:mt-8 sm:grid-cols-2 lg:grid-cols-4">
+ <div class="flex flex-col rounded-lg border border-gray-100 px-4 py-8 text-center">
+ <dt class="order-last text-lg font-medium text-gray-500">Total Sales</dt>
+ <dd class="text-4xl font-extrabold text-blue-600 md:text-5xl">$4.8m</dd>
+ </div>
+ <div class="flex flex-col rounded-lg border border-gray-100 px-4 py-8 text-center">
+ <dt class="order-last text-lg font-medium text-gray-500">Official Addons</dt>
+ <dd class="text-4xl font-extrabold text
+<!-- ...follow this structure -->
+
+### STATS STRIP (variant 2)
+<div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
+ <div class="mx-auto max-w-3xl text-center">
+ <h2 class="text-3xl font-bold text-gray-900 sm:text-4xl">
+ Trusted by eCommerce Businesses
+ </h2>
+ <p class="mt-4 text-gray-500 sm:text-xl">
+ [copy]</p>
+ </div>
+ <dl
+ class="mg-6 grid grid-cols-1 gap-4 divide-y divide-gray-100 sm:mt-8 sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-4"
+ >
+ <div class="flex flex-col px-4 py-8 text-center">
+ <dt class="order-last text-lg font-medium text-gray-500">Total Sales</dt>
+ <dd class="text-4xl font-extrabold text-blue-600 md:text-5xl">$4.8m</dd>
+ </div>
+ <div class="flex flex-col px-4 py-8 text-center">
+ <dt class="order-last text-lg font-medium text-gray-500">Official Addons</dt>
+ <dd class="text-4xl font-extrabold text-blue-600 md:t
+<!-- ...follow this structure -->
+
+### STATS STRIP (variant 3)
+<div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
+ <div class="mx-auto max-w-3xl text-center">
+ <h2 class="text-3xl font-bold text-gray-900 sm:text-4xl">
+ Trusted by eCommerce Businesses
+ </h2>
+ <p class="mt-4 text-gray-500 sm:text-xl">
+ [copy]</p>
+ </div>
+ <dl class="mt-6 grid grid-cols-1 gap-4 sm:mt-8 sm:grid-cols-2 lg:grid-cols-4">
+ <div class="flex flex-col rounded-lg bg-blue-50 px-4 py-8 text-center">
+ <dt class="order-last text-lg font-medium text-gray-500">Total Sales</dt>
+ <dd class="text-4xl font-extrabold text-blue-600 md:text-5xl">$4.8m</dd>
+ </div>
+ <div class="flex flex-col rounded-lg bg-blue-50 px-4 py-8 text-center">
+ <dt class="order-last text-lg font-medium text-gray-500">Official Addons</dt>
+ <dd class="text-4xl font-extrabold text-blue-600 md:text-5xl">2
+<!-- ...follow this structure -->
+
+### FAQ (variant 1)
+<div class="space-y-4">
+ <details class="group [&_summary::-webkit-details-marker]:hidden" open>
+ <summary
+ class="flex items-center justify-between gap-1.5 rounded-md border border-gray-100 bg-gray-50 p-4 text-gray-900"
+ >
+ <h2 class="text-lg font-medium">[copy]</h2>
+ <svg
+ aria-hidden="true"
+ class="size-5 shrink-0 transition-transform duration-300 group-open:-rotate-180"
+ xmlns="http://www.w3.org/2000/svg"
+ fill="none"
+ viewBox="0 0 24 24"
+ stroke="currentColor"
+ >
+ <path
+ stroke-linecap="round"
+ stroke-linejoin="round"
+ stroke-width="2"
+ d="M19 9l-7 7-7-7"
+ />
+ </svg>
+ </summary>
+ <p class="px-4 pt-4 text-gray-900">
+ [copy]uptate dicta quo officiis
+ explicabo consequuntur distinctio corporis earum similique!
+ </p>
+ </details>
+ <details class="group [&_summary::-webkit-details-marker]:h
+<!-- ...follow this structure -->
+
+### FAQ (variant 2)
+<div class="flow-root">
+ <div class="-my-4 flex flex-col divide-y divide-gray-200">
+ <details class="group py-4 [&_summary::-webkit-details-marker]:hidden" open>
+ <summary class="flex items-center justify-between gap-1.5 text-gray-900">
+ <h2 class="text-lg font-medium">[copy]</h2>
+ <svg
+ aria-hidden="true"
+ class="size-5 shrink-0 transition-transform duration-300 group-open:-rotate-180"
+ xmlns="http://www.w3.org/2000/svg"
+ fill="none"
+ viewBox="0 0 24 24"
+ stroke="currentColor"
+ >
+ <path
+ stroke-linecap="round"
+ stroke-linejoin="round"
+ stroke-width="2"
+ d="M19 9l-7 7-7-7"
+ />
+ </svg>
+ </summary>
+ <p class="pt-4 text-gray-900">
+ [copy]uptate dicta quo
+ officiis explicabo consequuntur distinctio corporis earum similique!
+ </p>
+ </details>
+ <details class="group py-4 [&_summary::-webkit-deta
+<!-- ...follow this structure -->
+
+### CONTACT + FORM (variant 1)
+<form
+ action="#"
+ class="mx-auto max-w-md space-y-4 rounded-lg border border-gray-300 bg-gray-100 p-6"
+ >
+ <div>
+ <label class="block text-sm font-medium text-gray-900" for="name">Name</label>
+ <input
+ class="mt-1 w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:outline-none"
+ id="name"
+ type="text"
+ placeholder="Your name"
+ />
+ </div>
+ <div>
+ <label class="block text-sm font-medium text-gray-900" for="email">Email</label>
+ <input
+ class="mt-1 w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:outline-none"
+ id="email"
+ type="email"
+ placeholder="Your email"
+ />
+ </div>
+ <div>
+ <label class="block text-sm font-medium text-gray-900" for="message">Message</label>
+ <textarea
+ class="mt-1 w-full resize-none rounded-lg border-gray-300 focus:border-indigo-500 focus:o
+<!-- ...follow this structure -->
+
+### CONTACT + FORM (variant 2)
+<form
+ action="#"
+ class="mx-auto max-w-md space-y-4 rounded-lg border border-gray-300 bg-gray-100 p-6"
+ >
+ <div>
+ <label class="block text-sm font-medium text-gray-900" for="name">Name</label>
+ <input
+ class="mt-1 w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:outline-none"
+ id="name"
+ type="text"
+ placeholder="Your name"
+ />
+ </div>
+ <div>
+ <label class="block text-sm font-medium text-gray-900" for="email">Email</label>
+ <input
+ class="mt-1 w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:outline-none"
+ id="email"
+ type="email"
+ placeholder="Your email"
+ />
+ </div>
+ <div>
+ <label class="block text-sm font-medium text-gray-900" for="subject">Subject</label>
+ <select
+ class="mt-1 w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:outline-none"
+ 
+<!-- ...follow this structure -->
+
+### NAV HEADER (variant 1)
+<header class="bg-white">
+ <div class="mx-auto flex h-16 max-w-7xl items-center gap-8 px-4 sm:px-6 lg:px-8">
+ <a class="block text-teal-600" href="#">
+ <span class="sr-only">Home</span>
+ <svg
+ class="h-8"
+ viewBox="0 0 28 24"
+ fill="none"
+ xmlns="http://www.w3.org/2000/svg"
+ aria-hidden="true"
+ >
+ <path
+ d="M0.41 10.3847C1.14777 7.4194 2.85643 4.7861 5.2639 2.90424C7.6714 1.02234 10.6393 0 13.695 0C16.7507 0 19.7186 1.02234 22.1261 2.90424C24.5336 4.7861 26.2422 7.4194 26.98 10.3847H25.78C23.7557 10.3549 21.7729 10.9599 20.11 12.1147C20.014 12.1842 19.9138 12.2477 19.81 12.3047H19.67C19.5662 12.2477 19.466 12.1842 19.37 12.1147C17.6924 10.9866 15.7166 10.3841 13.695 10.3841C11.6734 10.3841 9.6976 10.9866 8.02 12.1147C7.924 12.1842 7.8238 12.2477 7.72 12.3047H7.58C7.4762 12.2477 7.376 12.18
+<!-- ...follow this structure -->
+
+### NAV HEADER (variant 2)
+<header class="bg-white">
+ <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+ <div class="flex h-16 items-center justify-between">
+ <div class="md:flex md:items-center md:gap-12">
+ <a class="block text-teal-600" href="#">
+ <span class="sr-only">Home</span>
+ <svg
+ class="h-8"
+ viewBox="0 0 28 24"
+ fill="none"
+ xmlns="http://www.w3.org/2000/svg"
+ aria-hidden="true"
+ >
+ <path
+ d="M0.41 10.3847C1.14777 7.4194 2.85643 4.7861 5.2639 2.90424C7.6714 1.02234 10.6393 0 13.695 0C16.7507 0 19.7186 1.02234 22.1261 2.90424C24.5336 4.7861 26.2422 7.4194 26.98 10.3847H25.78C23.7557 10.3549 21.7729 10.9599 20.11 12.1147C20.014 12.1842 19.9138 12.2477 19.81 12.3047H19.67C19.5662 12.2477 19.466 12.1842 19.37 12.1147C17.6924 10.9866 15.7166 10.3841 13.695 10.3841C11.6734 10.3841 9.6976 10.9866 8.02 12.1147
+<!-- ...follow this structure -->
+
+### FOOTER (variant 1)
+<footer class="bg-white">
+ <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+ <div class="lg:flex lg:items-start lg:gap-8">
+ <div class="text-teal-600">
+ <svg
+ class="h-8"
+ viewBox="0 0 28 24"
+ fill="none"
+ xmlns="http://www.w3.org/2000/svg"
+ aria-hidden="true"
+ >
+ <path
+ d="M0.41 10.3847C1.14777 7.4194 2.85643 4.7861 5.2639 2.90424C7.6714 1.02234 10.6393 0 13.695 0C16.7507 0 19.7186 1.02234 22.1261 2.90424C24.5336 4.7861 26.2422 7.4194 26.98 10.3847H25.78C23.7557 10.3549 21.7729 10.9599 20.11 12.1147C20.014 12.1842 19.9138 12.2477 19.81 12.3047H19.67C19.5662 12.2477 19.466 12.1842 19.37 12.1147C17.6924 10.9866 15.7166 10.3841 13.695 10.3841C11.6734 10.3841 9.6976 10.9866 8.02 12.1147C7.924 12.1842 7.8238 12.2477 7.72 12.3047H7.58C7.4762 12.2477 7.376 12.1842 7.28 12.1147C5.6171 1
+<!-- ...follow this structure -->
+
+### FOOTER (variant 2)
+<footer class="bg-white">
+ <div class="mx-auto max-w-7xl px-4 pt-16 pb-6 sm:px-6 lg:px-8 lg:pt-24">
+ <div class="grid grid-cols-1 gap-8 lg:grid-cols-3">
+ <div>
+ <div class="flex justify-center text-teal-600 sm:justify-start">
+ <svg
+ class="h-8"
+ viewBox="0 0 118 24"
+ fill="none"
+ xmlns="http://www.w3.org/2000/svg"
+ aria-hidden="true"
+ >
+ <path
+ d="M37.83 19.2047C37.2352 19.237 36.6469 19.0679 36.16 18.7247C35.9566 18.5739 35.7929 18.3758 35.6831 18.1476C35.5733 17.9193 35.5208 17.6678 35.53 17.4147V8.1447C35.5252 8.1055 35.5293 8.0656 35.5422 8.0282C35.555 7.9908 35.5762 7.9569 35.6042 7.9289C35.6322 7.9009 35.6661 7.8797 35.7035 7.8669C35.7409 7.854 35.7808 7.8499 35.82 7.8547H37.5C37.69 7.8547 37.78 7.9547 37.78 8.1447V16.6947C37.78 17.0747 37.95 17.2647 38.3 17.2647C38.4484 17.2708 38.5
+<!-- ...follow this structure -->
+
+### ANNOUNCEMENT BANNER (variant 1)
+<section class="bg-white lg:grid lg:h-screen lg:place-content-center">
+ <div class="mx-auto w-screen max-w-7xl px-4 py-16 sm:px-6 sm:py-24 lg:px-8 lg:py-32">
+ <div class="mx-auto max-w-prose text-center">
+ <h1 class="text-4xl font-bold text-gray-900 sm:text-5xl">
+ Understand user flow and
+ <strong class="text-indigo-600"> increase </strong>
+ conversions
+ </h1>
+ <p class="mt-4 text-base text-pretty text-gray-700 sm:text-lg/relaxed">
+ [copy]</p>
+ <div class="mt-4 flex justify-center gap-4 sm:mt-6">
+ <a
+ class="inline-block rounded border border-indigo-600 bg-indigo-600 px-5 py-3 font-medium text-white shadow-sm transition-colors hover:bg-indigo-700"
+ href="#"
+ >
+ Get Started
+ </a>
+ <a
+ class="inline-block rounded border border-gray-200 px-5 py-3 font-medium text-gray-700 shadow-sm transition
+<!-- ...follow this structure -->
+
+### ANNOUNCEMENT BANNER (variant 2)
+<section class="bg-white lg:grid lg:h-screen lg:place-content-center">
+ <div class="mx-auto w-screen max-w-7xl px-4 py-16 sm:px-6 sm:py-24 lg:px-8 lg:py-32">
+ <div class="max-w-prose text-left">
+ <h1 class="text-4xl font-bold text-gray-900 sm:text-5xl">
+ Understand user flow and
+ <strong class="text-indigo-600"> increase </strong>
+ conversions
+ </h1>
+ <p class="mt-4 text-base text-pretty text-gray-700 sm:text-lg/relaxed">
+ [copy]</p>
+ <div class="mt-4 flex gap-4 sm:mt-6">
+ <a
+ class="inline-block rounded border border-indigo-600 bg-indigo-600 px-5 py-3 font-medium text-white shadow-sm transition-colors hover:bg-indigo-700"
+ href="#"
+ >
+ Get Started
+ </a>
+ <a
+ class="inline-block rounded border border-gray-200 px-5 py-3 font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 
+<!-- ...follow this structure -->
+
+### LOGO CLOUD (variant 1)
+<div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+ <div class="grid grid-cols-2 gap-px md:grid-cols-4">
+ <div class="grid place-content-center p-4 grayscale transition-[filter] hover:grayscale-0">
+ <svg
+ xmlns="http://www.w3.org/2000/svg"
+ fill="none"
+ viewBox="0 0 285 40"
+ class="h-8"
+ aria-hidden="true"
+ >
+ <path
+ fill="#ff500b"
+ d="M35.235 0c10.494 0 19 8.507 19 19v21a8 8 0 0 1-8-8V19c0-6.075-4.925-11-11-11h-5.2a10 10 0 0 0-7.072 2.929L9.407 24.485a4 4 0 0 0-1.172 2.829V28a4 4 0 0 0 4 4h18a8 8 0 0 1-7.587 7.99l-.413.01h-10c-6.627 0-12-5.373-12-12v-.686a12 12 0 0 1 3.515-8.486L17.307 5.272A18 18 0 0 1 30.034 0z"
+ />
+ <path
+ fill="#ff500b"
+ d="M37.235 12a5 5 0 0 1 5 5v23a8 8 0 0 1-8-8V20h-3.343l-6.536 6.535A5 5 0 0 1 20.82 28h-8.107a.47.47 0 0 1-.332-.802l13.733-13.733A5 5 0 0 1 2
+<!-- ...follow this structure -->
+
+### LOGO CLOUD (variant 2)
+<div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+ <div class="mx-auto max-w-lg text-center">
+ <h2 class="text-2xl font-bold text-gray-900 sm:text-3xl">Trusted by many</h2>
+ <p class="mt-4 text-pretty text-gray-700">
+ Lorem, ipsum dolor sit amet consectetur adipisicing elit. Sed voluptas delectus alias
+ magni velit! Dicta corrupti dignissimos dolor consequatur illum tempore consectetur hic a
+ cupiditate sunt quam, earum nisi aperiam.
+ </p>
+ </div>
+ <div class="mt-4 grid grid-cols-2 gap-px md:grid-cols-4">
+ <div class="grid place-content-center p-4 grayscale transition-[filter] hover:grayscale-0">
+ <svg
+ xmlns="http://www.w3.org/2000/svg"
+ fill="none"
+ viewBox="0 0 285 40"
+ class="h-8"
+ aria-hidden="true"
+ >
+ <path
+ fill="#ff500b"
+ d="M35.235 0c10.494 0 19 8.507 19 19v21a8 8 0 0 1-8
+<!-- ...follow this structure -->
+
+### NEWSLETTER SIGNUP (variant 1)
+<div class="bg-gray-100">
+ <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+ <div class="max-w-prose">
+ <h2 class="text-2xl font-semibold text-gray-900 sm:text-3xl">
+ Sign up for our newsletter
+ </h2>
+ <p class="mt-4 text-pretty text-gray-700">
+ [copy]nderit voluptas
+ sequi.
+ </p>
+ </div>
+ <form action="#" class="mt-6 flex max-w-xl flex-col gap-4 sm:flex-row sm:items-center">
+ <label for="Email" class="flex-1">
+ <span class="sr-only"> Email </span>
+ <input
+ type="email"
+ id="Email"
+ placeholder="Enter your email"
+ class="h-12 w-full rounded border-gray-300 shadow-sm"
+ />
+ </label>
+ <button
+ type="submit"
+ class="h-12 rounded-sm border border-indigo-600 bg-indigo-600 px-12 py-3 text-sm font-medium text-white hover:bg-transparent hover:text-indigo-600"
+ >
+ Sign Up
+ </button>
+ </form
+<!-- ...follow this structure -->
+
+### NEWSLETTER SIGNUP (variant 2)
+<div class="bg-gray-100">
+ <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+ <div class="mx-auto max-w-prose text-center">
+ <h2 class="text-2xl font-semibold text-gray-900 sm:text-3xl">
+ Sign up for our newsletter
+ </h2>
+ <p class="mt-4 text-pretty text-gray-700">
+ [copy]nderit voluptas
+ sequi.
+ </p>
+ </div>
+ <form
+ action="#"
+ class="mx-auto mt-6 flex max-w-xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-center"
+ >
+ <label for="Email" class="flex-1">
+ <span class="sr-only"> Email </span>
+ <input
+ type="email"
+ id="Email"
+ placeholder="Enter your email"
+ class="h-12 w-full rounded border-gray-300 shadow-sm"
+ />
+ </label>
+ <button
+ type="submit"
+ class="h-12 rounded-sm border border-indigo-600 bg-indigo-600 px-12 py-3 text-sm font-medium text-white hover:bg-transparent hov
+<!-- ...follow this structure -->
+
+### BLOG / ARTICLE CARDS (variant 1)
+<article class="overflow-hidden rounded-lg shadow-sm transition hover:shadow-lg">
+ <img
+ alt=""
+ src="https://images.unsplash.com/photo-1524758631624-e2822e304c36?auto=format&fit=crop&q=80&w=1160"
+ class="h-56 w-full object-cover"
+ />
+ <div class="bg-white p-4 sm:p-6">
+ <time datetime="2022-10-10" class="block text-xs text-gray-500"> 10th Oct 2022 </time>
+ <a href="#">
+ <h3 class="mt-0.5 text-lg text-gray-900">
+ How to position your furniture for positivity
+ </h3>
+ </a>
+ <p class="mt-2 line-clamp-3 text-sm/relaxed text-gray-500">
+ [copy] ipsum eveniet corporis
+ quidem, mollitia itaque minus soluta, voluptates neque explicabo tempora nisi culpa eius
+ atque dignissimos. Molestias explicabo corporis voluptatem?
+ </p>
+ </div>
+ </article>
+
+### BLOG / ARTICLE CARDS (variant 2)
+<article class="group">
+ <img
+ alt=""
+ src="https://images.unsplash.com/photo-1631451095765-2c91616fc9e6?auto=format&fit=crop&q=80&w=1160"
+ class="h-56 w-full rounded-xl object-cover shadow-xl transition group-hover:grayscale-50"
+ />
+ <div class="p-4">
+ <a href="#">
+ <h3 class="text-lg font-medium text-gray-900">Finding the Journey to Mordor</h3>
+ </a>
+ <p class="mt-2 line-clamp-3 text-sm/relaxed text-gray-500">
+ [copy] ipsum eveniet corporis
+ quidem, mollitia itaque minus soluta, voluptates neque explicabo tempora nisi culpa eius
+ atque dignissimos. Molestias explicabo corporis voluptatem?
+ </p>
+ </div>
+ </article>
+
+### PRODUCT CARD (variant 1)
+<a href="#" class="group block overflow-hidden">
+ <div class="relative h-87.5 sm:h-112.5">
+ <img
+ src="https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&q=80&w=1160"
+ alt=""
+ class="absolute inset-0 h-full w-full object-cover opacity-100 group-hover:opacity-0"
+ />
+ <img
+ src="https://images.unsplash.com/photo-1523381140794-a1eef18a37c7?auto=format&fit=crop&q=80&w=1160"
+ alt=""
+ class="absolute inset-0 h-full w-full object-cover opacity-0 group-hover:opacity-100"
+ />
+ </div>
+ <div class="relative bg-white pt-3">
+ <h3 class="text-sm text-gray-700 group-hover:underline group-hover:underline-offset-4">
+ Limited Edition Sports Trainer
+ </h3>
+ <p class="mt-1.5 tracking-wide text-gray-900">$189.99</p>
+ </div>
+ </a>
+
+### PRODUCT CARD (variant 2)
+<a href="#" class="group block overflow-hidden">
+ <div class="relative h-87.5 sm:h-112.5">
+ <img
+ src="https://images.unsplash.com/photo-1600185365483-26d7a4cc7519?auto=format&fit=crop&q=80&w=1160"
+ alt=""
+ class="absolute inset-0 h-full w-full object-cover opacity-100 group-hover:opacity-0"
+ />
+ <img
+ src="https://images.unsplash.com/photo-1600185365926-3a2ce3cdb9eb?auto=format&fit=crop&q=80&w=1160"
+ alt=""
+ class="absolute inset-0 h-full w-full object-cover opacity-0 group-hover:opacity-100"
+ />
+ </div>
+ <div class="relative bg-white pt-3">
+ <h3 class="text-sm text-gray-700 group-hover:underline group-hover:underline-offset-4">
+ Limited Edition Sports Trainer
+ </h3>
+ <div class="mt-1.5 flex items-center justify-between text-gray-900">
+ <p class="tracking-wide">$189.99</p>
+ <p class="text
+<!-- ...follow this structure -->
