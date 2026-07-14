@@ -74,6 +74,9 @@ the durable worker together. Set `LAUNCHKIT_POSTGRES_PORT` when host port 5432 i
 The OpenAPI documentation is available at `http://127.0.0.1:8000/docs`. See
 [`docs/api-v1.md`](docs/api-v1.md) for the implemented contracts and frontend mapping.
 See [`docs/v0-hooks.md`](docs/v0-hooks.md) before provisioning an environment callback.
+Use [`docs/manual-integration.md`](docs/manual-integration.md) for the credentialed
+OpenRouter, v0, storage, and Vercel acceptance run. The decision to retain the old
+root transport is recorded in [`docs/legacy-transport.md`](docs/legacy-transport.md).
 
 ## Quality Checks
 

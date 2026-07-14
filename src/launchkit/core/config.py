@@ -65,7 +65,7 @@ class Settings(BaseSettings):
     vercel_team_id: str | None = None
     vercel_base_url: str = "https://api.vercel.com"
     vercel_webhook_secret: SecretStr | None = None
-    claim_return_url: str = "http://localhost:8000/"
+    claim_return_url: str = "http://localhost:5173/"
 
 
 @lru_cache

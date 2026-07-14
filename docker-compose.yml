@@ -1,3 +1,8 @@
+x-launchkit-env-files: &launchkit-env-files
+  - path: .env.example
+  - path: .env
+    required: false
+
 services:
   postgres:
     image: postgres:17-alpine
@@ -21,6 +26,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    env_file: *launchkit-env-files
     environment: &launchkit-environment
       LAUNCHKIT_DATABASE_URL: postgresql+asyncpg://launchkit:launchkit@postgres:5432/launchkit
     restart: "no"
@@ -30,6 +36,7 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+    env_file: *launchkit-env-files
     environment: *launchkit-environment
     ports:
       - "8000:8000"
@@ -40,6 +47,7 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+    env_file: *launchkit-env-files
     environment: *launchkit-environment
 
 volumes:
