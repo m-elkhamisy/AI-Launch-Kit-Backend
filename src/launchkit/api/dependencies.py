@@ -10,6 +10,8 @@ from launchkit.assets import AssetBlobStore
 from launchkit.builds import BuildService
 from launchkit.builds.webhooks import V0WebhookService
 from launchkit.core.config import Settings
+from launchkit.deployment.service import DeploymentService
+from launchkit.deployment.webhooks import VercelWebhookService
 from launchkit.persistence import Database, PersistenceRepository
 from launchkit.projects import ProjectService
 from launchkit.workflows import WorkflowService
@@ -63,9 +65,28 @@ def get_v0_webhook_service(
     return V0WebhookService(PersistenceRepository(session), settings)
 
 
+def get_deployment_service(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    owner_id: Annotated[str, Depends(get_current_user_id)],
+    settings: Annotated[Settings, Depends(get_request_settings)],
+) -> DeploymentService:
+    return DeploymentService(PersistenceRepository(session), owner_id, settings)
+
+
+def get_vercel_webhook_service(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    settings: Annotated[Settings, Depends(get_request_settings)],
+) -> VercelWebhookService:
+    return VercelWebhookService(PersistenceRepository(session), settings)
+
+
 SettingsDependency = Annotated[Settings, Depends(get_request_settings)]
 ProjectServiceDependency = Annotated[ProjectService, Depends(get_project_service)]
 WorkflowServiceDependency = Annotated[WorkflowService, Depends(get_workflow_service)]
 BuildServiceDependency = Annotated[BuildService, Depends(get_build_service)]
 V0WebhookServiceDependency = Annotated[V0WebhookService, Depends(get_v0_webhook_service)]
+DeploymentServiceDependency = Annotated[DeploymentService, Depends(get_deployment_service)]
+VercelWebhookServiceDependency = Annotated[
+    VercelWebhookService, Depends(get_vercel_webhook_service)
+]
 CurrentUserDependency = Annotated[str, Depends(get_current_user_id)]

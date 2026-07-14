@@ -14,6 +14,7 @@ from launchkit.assets import create_asset_store
 from launchkit.builds.handlers import create_build_job_handlers
 from launchkit.core.config import Settings, get_settings
 from launchkit.core.logging import configure_logging
+from launchkit.deployment.handlers import create_deployment_job_handlers
 from launchkit.persistence import PersistenceRepository, create_database
 from launchkit.persistence.models import JobRecord
 from launchkit.workflows.handlers import create_workflow_job_handlers
@@ -87,7 +88,11 @@ async def _main(once: bool) -> None:
     async with httpx.AsyncClient(timeout=timeout) as client:
         runtime = create_workflow_job_handlers(settings, client, asset_store)
         builds = create_build_job_handlers(settings, client, asset_store)
-        worker = Worker(settings, handlers={**runtime.handlers, **builds.handlers})
+        deployments = create_deployment_job_handlers(settings, client, asset_store)
+        worker = Worker(
+            settings,
+            handlers={**runtime.handlers, **builds.handlers, **deployments.handlers},
+        )
         if once:
             await worker.run_once()
             await worker.close()

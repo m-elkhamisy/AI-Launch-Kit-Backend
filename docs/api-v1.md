@@ -22,7 +22,10 @@ server-side `LAUNCHKIT_TESTING_USER_ID`; clients must not send a user ID.
 | `GET` | `/builds/{build_id}` | Returns safe build status, URLs, messages, and timestamps. |
 | `GET` | `/builds/{build_id}/events` | Streams persisted status events using SSE and `Last-Event-ID`. |
 | `GET` | `/builds/{build_id}/download` | Downloads the completed ZIP archive. |
+| `POST` | `/builds/{build_id}/deployments` | Idempotently queues a Vercel claim deployment. |
+| `GET` | `/deployments/{deployment_id}` | Returns safe deployment and claim status. |
 | `POST` | `/webhooks/v0/{token}` | Accepts the configured v0 `message.finished` callback. |
+| `POST` | `/webhooks/vercel` | Accepts signed Vercel deployment callbacks. |
 
 Every response uses camel-case JSON fields. Every error uses:
 
@@ -115,3 +118,29 @@ and `downloadUrl`; downloads before completion return `409 Conflict`.
 
 See [`v0-hooks.md`](v0-hooks.md) for hook provisioning, callback security, duplicate
 handling, and environment setup.
+
+## Vercel deployments
+
+Deployment creation requires a completed build archive, Vercel configuration, and an
+`Idempotency-Key`. The endpoint creates the internal deployment before the worker calls
+Vercel. Repeating a key returns the original deployment, and concurrent requests reuse
+the active deployment rather than creating another external project.
+
+The worker deploys the stored ZIP, requests an ownership-transfer claim URL, and stores
+the Vercel project and deployment IDs only as private provider references. Public API
+responses contain the internal deployment ID, status, live URL, claim URL, estimated
+24-hour claim expiration, and safe message. The transfer code is exposed only inside
+the required Vercel claim URL.
+
+The supported success status is `ready_to_claim`. Vercel does not provide this API with
+an authoritative signal that the end user accepted ownership, so the backend does not
+fabricate a `completed` transition. Signed `deployment.error` and
+`deployment.canceled` callbacks can move a claimable deployment to `failed` or
+`cancelled` when Vercel reports a later provider outcome.
+
+Vercel webhooks require `LAUNCHKIT_VERCEL_WEBHOOK_SECRET`. The endpoint computes an
+HMAC-SHA1 digest over the unmodified request body and compares it in constant time with
+`x-vercel-signature`, following Vercel's documented verification mechanism. Delivery
+IDs are persisted for replay protection; unknown deployment IDs are ignored safely.
+Configure the Vercel account/team webhook for deployment created, succeeded/ready,
+error, and canceled events at `/api/v1/webhooks/vercel`.

@@ -10,15 +10,19 @@ from launchkit.api.catalogs import build_wizard_catalog
 from launchkit.api.dependencies import (
     BuildServiceDependency,
     CurrentUserDependency,
+    DeploymentServiceDependency,
     ProjectServiceDependency,
     SettingsDependency,
     V0WebhookServiceDependency,
+    VercelWebhookServiceDependency,
     WorkflowServiceDependency,
 )
 from launchkit.api.schemas import HealthResponse, WizardCatalogResponse
 from launchkit.builds import BuildCreate, BuildView
 from launchkit.builds.sse import stream_build_events
 from launchkit.builds.webhooks import WebhookReceipt
+from launchkit.deployment import DeploymentCreate, DeploymentView
+from launchkit.deployment.webhooks import VercelWebhookReceipt
 from launchkit.persistence import Database
 from launchkit.projects import ProjectDraft, ProjectPatch, ProjectView
 from launchkit.workflows import MockupSelection, MockupView, OperationView
@@ -191,6 +195,28 @@ async def download_build(build_id: str, service: BuildServiceDependency) -> Stre
 
 
 @api_router.post(
+    "/builds/{build_id}/deployments",
+    response_model=DeploymentView,
+    status_code=status.HTTP_202_ACCEPTED,
+    tags=["deployments"],
+)
+async def start_deployment(
+    build_id: str,
+    deployment: DeploymentCreate,
+    service: DeploymentServiceDependency,
+    idempotency_key: Annotated[str, Header(alias="Idempotency-Key")],
+) -> DeploymentView:
+    return await service.start(build_id, deployment, idempotency_key)
+
+
+@api_router.get("/deployments/{deployment_id}", response_model=DeploymentView, tags=["deployments"])
+async def get_deployment(
+    deployment_id: str, service: DeploymentServiceDependency
+) -> DeploymentView:
+    return await service.get(deployment_id)
+
+
+@api_router.post(
     "/webhooks/v0/{token}",
     response_model=WebhookReceipt,
     status_code=status.HTTP_202_ACCEPTED,
@@ -200,3 +226,17 @@ async def receive_v0_webhook(
     token: str, request: Request, service: V0WebhookServiceDependency
 ) -> WebhookReceipt:
     return await service.receive(token, await request.body())
+
+
+@api_router.post(
+    "/webhooks/vercel",
+    response_model=VercelWebhookReceipt,
+    status_code=status.HTTP_202_ACCEPTED,
+    tags=["webhooks"],
+)
+async def receive_vercel_webhook(
+    request: Request,
+    service: VercelWebhookServiceDependency,
+    signature: Annotated[str | None, Header(alias="x-vercel-signature")] = None,
+) -> VercelWebhookReceipt:
+    return await service.receive(await request.body(), signature)

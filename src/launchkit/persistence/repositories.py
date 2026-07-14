@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from launchkit.persistence.models import (
     AssetRecord,
     BuildRecord,
+    DeploymentRecord,
     IdempotencyRecord,
     JobRecord,
     MockupRecord,
@@ -108,6 +109,14 @@ class PersistenceRepository:
             select(AssetRecord)
             .join(ProjectRecord, AssetRecord.project_id == ProjectRecord.id)
             .where(AssetRecord.id == asset_id, ProjectRecord.owner_id == owner_id)
+        )
+        return records.one_or_none()
+
+    async def get_asset_for_project(self, asset_id: str, project_id: str) -> AssetRecord | None:
+        records = await self._session.scalars(
+            select(AssetRecord).where(
+                AssetRecord.id == asset_id, AssetRecord.project_id == project_id
+            )
         )
         return records.one_or_none()
 
@@ -227,6 +236,14 @@ class PersistenceRepository:
         )
         return records.one_or_none()
 
+    async def get_project_for_build(self, build_id: str) -> ProjectRecord | None:
+        records = await self._session.scalars(
+            select(ProjectRecord)
+            .join(BuildRecord, BuildRecord.project_id == ProjectRecord.id)
+            .where(BuildRecord.id == build_id)
+        )
+        return records.one_or_none()
+
     async def find_active_build(self, project_id: str) -> BuildRecord | None:
         records = await self._session.scalars(
             select(BuildRecord)
@@ -236,6 +253,53 @@ class PersistenceRepository:
             )
             .order_by(BuildRecord.created_at.desc())
             .limit(1)
+        )
+        return records.one_or_none()
+
+    async def add_deployment(self, *, build_id: str) -> DeploymentRecord:
+        record = DeploymentRecord(id=new_id("dep"), build_id=build_id)
+        self._session.add(record)
+        await self._session.flush()
+        return record
+
+    async def get_deployment(self, deployment_id: str, owner_id: str) -> DeploymentRecord | None:
+        records = await self._session.scalars(
+            select(DeploymentRecord)
+            .join(BuildRecord, DeploymentRecord.build_id == BuildRecord.id)
+            .join(ProjectRecord, BuildRecord.project_id == ProjectRecord.id)
+            .where(DeploymentRecord.id == deployment_id, ProjectRecord.owner_id == owner_id)
+        )
+        return records.one_or_none()
+
+    async def find_active_deployment(self, build_id: str) -> DeploymentRecord | None:
+        records = await self._session.scalars(
+            select(DeploymentRecord)
+            .where(
+                DeploymentRecord.build_id == build_id,
+                DeploymentRecord.status.in_(("queued", "creating", "building", "ready_to_claim")),
+            )
+            .order_by(DeploymentRecord.created_at.desc())
+            .limit(1)
+        )
+        return records.one_or_none()
+
+    async def find_deployment_by_provider_reference(
+        self, *, provider: str, reference_type: str, reference_value: str
+    ) -> DeploymentRecord | None:
+        records = await self._session.scalars(
+            select(DeploymentRecord)
+            .join(
+                ProviderReferenceRecord,
+                and_(
+                    ProviderReferenceRecord.resource_type == "deployment",
+                    ProviderReferenceRecord.resource_id == DeploymentRecord.id,
+                ),
+            )
+            .where(
+                ProviderReferenceRecord.provider == provider,
+                ProviderReferenceRecord.reference_type == reference_type,
+                ProviderReferenceRecord.reference_value == reference_value,
+            )
         )
         return records.one_or_none()
 

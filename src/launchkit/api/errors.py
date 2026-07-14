@@ -14,6 +14,11 @@ from launchkit.assets import UploadTooLargeError, UploadValidationError
 from launchkit.builds import BuildNotFoundError
 from launchkit.builds.webhooks import WebhookAccessError, WebhookPayloadError
 from launchkit.core.exceptions import ConfigurationError, DomainError, ProviderError
+from launchkit.deployment.service import DeploymentNotFoundError
+from launchkit.deployment.webhooks import (
+    VercelWebhookAccessError,
+    VercelWebhookPayloadError,
+)
 from launchkit.projects import ProjectNotFoundError
 from launchkit.workflows import WorkflowNotFoundError
 
@@ -95,6 +100,17 @@ def register_error_handlers(app: FastAPI) -> None:
             request, status_code=404, code="build_not_found", message="Build not found."
         )
 
+    @app.exception_handler(DeploymentNotFoundError)
+    async def handle_deployment_not_found(
+        request: Request, _: DeploymentNotFoundError
+    ) -> JSONResponse:
+        return error_response(
+            request,
+            status_code=404,
+            code="deployment_not_found",
+            message="Deployment not found.",
+        )
+
     @app.exception_handler(WebhookAccessError)
     async def handle_webhook_access(request: Request, _: WebhookAccessError) -> JSONResponse:
         return error_response(
@@ -103,6 +119,23 @@ def register_error_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(WebhookPayloadError)
     async def handle_webhook_payload(request: Request, exc: WebhookPayloadError) -> JSONResponse:
+        return error_response(request, status_code=400, code="invalid_webhook", message=str(exc))
+
+    @app.exception_handler(VercelWebhookAccessError)
+    async def handle_vercel_webhook_access(
+        request: Request, _: VercelWebhookAccessError
+    ) -> JSONResponse:
+        return error_response(
+            request,
+            status_code=401,
+            code="invalid_webhook_signature",
+            message="Invalid webhook signature.",
+        )
+
+    @app.exception_handler(VercelWebhookPayloadError)
+    async def handle_vercel_webhook_payload(
+        request: Request, exc: VercelWebhookPayloadError
+    ) -> JSONResponse:
         return error_response(request, status_code=400, code="invalid_webhook", message=str(exc))
 
     @app.exception_handler(ConfigurationError)
