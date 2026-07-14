@@ -18,6 +18,11 @@ server-side `LAUNCHKIT_TESTING_USER_ID`; clients must not send a user ID.
 | `PUT` | `/projects/{project_id}/selected-mockup` | Persists the chosen mockup. |
 | `GET` | `/operations/{operation_id}` | Returns persisted status and safe result/error details. |
 | `GET` | `/assets/{asset_id}/content` | Streams an owned asset or sandboxed HTML preview. |
+| `POST` | `/projects/{project_id}/builds` | Idempotently queues the final v0 build and returns `202 Accepted`. |
+| `GET` | `/builds/{build_id}` | Returns safe build status, URLs, messages, and timestamps. |
+| `GET` | `/builds/{build_id}/events` | Streams persisted status events using SSE and `Last-Event-ID`. |
+| `GET` | `/builds/{build_id}/download` | Downloads the completed ZIP archive. |
+| `POST` | `/webhooks/v0/{token}` | Accepts the configured v0 `message.finished` callback. |
 
 Every response uses camel-case JSON fields. Every error uses:
 
@@ -87,3 +92,26 @@ draft returns the original operation, while reusing it after changing the draft 
 `409 Conflict`. Generated HTML is stored as an asset and served with a CSP `sandbox`
 without `allow-same-origin`; the frontend should render its `previewUrl` in a sandboxed
 iframe and must not inject it into the application DOM.
+
+## Final builds
+
+Final builds require a company name, a selected mockup, v0 configuration, and an
+`Idempotency-Key`. Only one active build is allowed per project. A repeated key for the
+same project revision returns the original build; reusing it after changing the draft
+returns `409 Conflict`. The API returns an internal build ID and never exposes the v0
+chat or version IDs.
+
+The database-backed worker submits the paid generation once. A transient or uncertain
+submission error is failed with a warning and is not submitted automatically again.
+After v0 accepts the chat, the worker records the provider reference privately and
+reconciles against v0 with exponential backoff until completion, failure, or
+`LAUNCHKIT_BUILD_TIMEOUT_SECONDS`. A valid `message.finished` hook wakes reconciliation
+early but does not treat the hook payload as authoritative status.
+
+Clients can poll `GET /builds/{build_id}` or subscribe to the SSE endpoint. SSE event IDs
+are persisted status-event sequence numbers. Send `Last-Event-ID` after reconnecting to
+resume without replaying older events. Completed builds expose `previewUrl`, `webUrl`,
+and `downloadUrl`; downloads before completion return `409 Conflict`.
+
+See [`v0-hooks.md`](v0-hooks.md) for hook provisioning, callback security, duplicate
+handling, and environment setup.

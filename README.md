@@ -10,7 +10,7 @@ websites from company intake data. The production package uses a Python 3.12 src
 - Business workflows are directly callable without FastAPI or HTTP.
 - OpenRouter, Pexels, v0, S3, and Vercel are isolated behind adapters and are tested
   offline with fakes or mock transports.
-- FastAPI exposes V1 project drafts, profile extraction, mockup operations, and previews.
+- FastAPI exposes V1 projects, profile extraction, mockups, final builds, SSE, and ZIPs.
 - PostgreSQL, Alembic, and a durable database-backed worker provide the workflow foundation.
 
 ## Project Structure
@@ -72,6 +72,7 @@ the durable worker together. Set `LAUNCHKIT_POSTGRES_PORT` when host port 5432 i
 
 The OpenAPI documentation is available at `http://127.0.0.1:8000/docs`. See
 [`docs/api-v1.md`](docs/api-v1.md) for the implemented contracts and frontend mapping.
+See [`docs/v0-hooks.md`](docs/v0-hooks.md) before provisioning an environment callback.
 
 ## Quality Checks
 

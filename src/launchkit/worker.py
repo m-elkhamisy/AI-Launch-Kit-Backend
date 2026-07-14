@@ -11,6 +11,7 @@ import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from launchkit.assets import create_asset_store
+from launchkit.builds.handlers import create_build_job_handlers
 from launchkit.core.config import Settings, get_settings
 from launchkit.core.logging import configure_logging
 from launchkit.persistence import PersistenceRepository, create_database
@@ -85,7 +86,8 @@ async def _main(once: bool) -> None:
     timeout = httpx.Timeout(120, connect=10)
     async with httpx.AsyncClient(timeout=timeout) as client:
         runtime = create_workflow_job_handlers(settings, client, asset_store)
-        worker = Worker(settings, handlers=runtime.handlers)
+        builds = create_build_job_handlers(settings, client, asset_store)
+        worker = Worker(settings, handlers={**runtime.handlers, **builds.handlers})
         if once:
             await worker.run_once()
             await worker.close()

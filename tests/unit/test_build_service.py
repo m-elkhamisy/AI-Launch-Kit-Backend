@@ -1,0 +1,212 @@
+"""Build service readiness, idempotency, ownership, and download behavior."""
+
+import asyncio
+from datetime import UTC, datetime
+from types import SimpleNamespace
+from typing import Any, cast
+
+import pytest
+
+from launchkit.assets import AssetBlobStore
+from launchkit.builds.models import BuildCreate, BuildView
+from launchkit.builds.service import BuildNotFoundError, BuildService
+from launchkit.core.config import Settings
+from launchkit.core.exceptions import ConfigurationError, DomainError
+from launchkit.persistence.models import AssetRecord, BuildRecord, ProjectRecord
+from launchkit.persistence.repositories import PersistenceRepository
+
+
+class RepositoryStub:
+    def __init__(self) -> None:
+        now = datetime.now(UTC)
+        self.project: ProjectRecord | None = ProjectRecord(
+            id="project-1",
+            owner_id="owner-1",
+            status="draft",
+            business={"companyName": "Northstar"},
+            design={},
+            page_layout={},
+            selected_mockup_id="mockup-1",
+            created_at=now,
+            updated_at=now,
+        )
+        self.build: BuildRecord | None = None
+        self.mockup_exists = True
+        self.active = False
+        self.idempotency: Any | None = None
+        self.asset: AssetRecord | None = None
+        self.events: list[dict[str, Any]] = []
+        self.jobs: list[tuple[str, dict[str, str]]] = []
+        self.commits = 0
+
+    async def get_project(self, project_id: str, owner_id: str) -> ProjectRecord | None:
+        del project_id, owner_id
+        return self.project
+
+    async def get_mockup(self, mockup_id: str, project_id: str) -> object | None:
+        del mockup_id, project_id
+        return object() if self.mockup_exists else None
+
+    async def get_idempotency(self, **kwargs: str) -> Any | None:
+        del kwargs
+        return self.idempotency
+
+    async def find_active_build(self, project_id: str) -> BuildRecord | None:
+        del project_id
+        return self.build if self.active else None
+
+    async def add_build(self, *, project_id: str, provider: str) -> BuildRecord:
+        now = datetime.now(UTC)
+        self.build = BuildRecord(
+            id="build-1",
+            project_id=project_id,
+            provider=provider,
+            status="queued",
+            stage="queued",
+            message="Build queued",
+            warnings=[],
+            created_at=now,
+            updated_at=now,
+        )
+        return self.build
+
+    async def add_status_event(self, **event: Any) -> None:
+        self.events.append(event)
+
+    async def enqueue_job(self, kind: str, payload: dict[str, str]) -> None:
+        self.jobs.append((kind, payload))
+
+    async def add_idempotency(self, **values: str) -> None:
+        self.idempotency = SimpleNamespace(
+            request_hash=values["request_hash"], resource_id=values["resource_id"]
+        )
+
+    async def commit(self) -> None:
+        self.commits += 1
+
+    async def get_build(self, build_id: str, owner_id: str) -> BuildRecord | None:
+        del build_id, owner_id
+        return self.build
+
+    async def get_asset(self, asset_id: str, owner_id: str) -> AssetRecord | None:
+        del asset_id, owner_id
+        return self.asset
+
+
+class BlobStoreStub:
+    async def get(self, storage_key: str) -> bytes:
+        assert storage_key == "archives/site.zip"
+        return b"PK-archive"
+
+
+def service(repository: RepositoryStub, *, configured: bool = True) -> BuildService:
+    return BuildService(
+        cast(PersistenceRepository, repository),
+        "owner-1",
+        Settings(environment="test", v0_api_key="v0" if configured else None),
+        cast(AssetBlobStore, BlobStoreStub()),
+    )
+
+
+def start(repository: RepositoryStub, key: str = "build-key") -> BuildView:
+    return asyncio.run(service(repository).start("project-1", BuildCreate(), key))
+
+
+def test_start_enforces_project_configuration_and_readiness() -> None:
+    repository = RepositoryStub()
+    repository.project = None
+    with pytest.raises(BuildNotFoundError, match="Project not found"):
+        start(repository)
+
+    repository = RepositoryStub()
+    with pytest.raises(ConfigurationError, match="v0"):
+        asyncio.run(service(repository, configured=False).start("project-1", BuildCreate(), "key"))
+
+    assert repository.project is not None
+    repository.project.business["companyName"] = " "
+    with pytest.raises(DomainError, match="company name"):
+        start(repository)
+
+    repository = RepositoryStub()
+    assert repository.project is not None
+    repository.project.selected_mockup_id = None
+    with pytest.raises(DomainError, match="Select a mockup"):
+        start(repository)
+
+    repository = RepositoryStub()
+    repository.mockup_exists = False
+    with pytest.raises(DomainError, match="no longer available"):
+        start(repository)
+
+    with pytest.raises(DomainError, match="Idempotency-Key"):
+        start(RepositoryStub(), " ")
+
+
+def test_start_is_idempotent_and_prevents_conflicts() -> None:
+    repository = RepositoryStub()
+    created = start(repository)
+    repeated = start(repository)
+
+    assert created.id == repeated.id == "build-1"
+    assert repository.commits == 1
+    assert repository.jobs == [("build.submit", {"buildId": "build-1"})]
+    assert repository.project is not None
+    assert repository.project.latest_build_id == "build-1"
+    assert repository.project.status == "build_queued"
+
+    assert repository.idempotency is not None
+    repository.idempotency.request_hash = "different"
+    with pytest.raises(DomainError, match="different build"):
+        start(repository)
+
+    repository.idempotency = None
+    repository.active = True
+    with pytest.raises(DomainError, match="already active"):
+        start(repository, "new-key")
+
+
+def test_start_rejects_a_dangling_idempotency_resource() -> None:
+    repository = RepositoryStub()
+    start(repository)
+    repository.build = None
+
+    with pytest.raises(BuildNotFoundError, match="Build not found"):
+        start(repository)
+
+
+def test_get_and_download_enforce_ownership_and_archive_readiness() -> None:
+    repository = RepositoryStub()
+    build_service = service(repository)
+    with pytest.raises(BuildNotFoundError, match="Build not found"):
+        asyncio.run(build_service.get("missing"))
+    with pytest.raises(BuildNotFoundError, match="Build not found"):
+        asyncio.run(build_service.download("missing"))
+
+    start(repository)
+    assert asyncio.run(build_service.get("build-1")).id == "build-1"
+    with pytest.raises(DomainError, match="not ready"):
+        asyncio.run(build_service.download("build-1"))
+
+    assert repository.build is not None
+    repository.build.status = "completed"
+    repository.build.archive_asset_id = "asset-1"
+    with pytest.raises(BuildNotFoundError, match="archive not found"):
+        asyncio.run(build_service.download("build-1"))
+
+    now = datetime.now(UTC)
+    repository.asset = AssetRecord(
+        id="asset-1",
+        project_id="project-1",
+        kind="build_archive",
+        storage_key="archives/site.zip",
+        filename="Northstar site.zip",
+        label="Build archive",
+        content_type="application/zip",
+        size=10,
+        sha256="a" * 64,
+        created_at=now,
+        updated_at=now,
+    )
+    content, filename = asyncio.run(build_service.download("build-1"))
+    assert content == b"PK-archive"
+    assert filename == "Northstar site.zip"

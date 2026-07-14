@@ -45,6 +45,8 @@ def test_create_chat_uses_async_private_generation_and_normalizes_result() -> No
 
     assert result.status is PipelineStatus.PENDING
     assert result.file_count == 1
+    assert result.version_id == "version-1"
+    assert result.files == ["index.html"]
     assert body["responseMode"] == "async"
     assert body["chatPrivacy"] == "private"
     assert body["modelConfiguration"]["modelId"] == "v0-max"
@@ -164,3 +166,52 @@ def test_v0_errors_are_normalized(response: httpx.Response) -> None:
     )
     with pytest.raises(ProviderError):
         asyncio.run(adapter.create_chat("prompt"))
+
+
+def test_v0_hook_lifecycle_uses_official_hook_routes() -> None:
+    requests: list[httpx.Request] = []
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if request.method == "GET":
+            return httpx.Response(
+                200,
+                json={
+                    "hooks": [
+                        {
+                            "id": "hook-1",
+                            "name": "Existing",
+                            "url": "https://api.example/hook",
+                            "events": ["message.finished"],
+                        }
+                    ]
+                },
+            )
+        if request.method == "POST":
+            return httpx.Response(
+                200,
+                json={
+                    "id": "hook-2",
+                    "name": "Created",
+                    "url": "https://api.example/new",
+                    "events": ["message.finished"],
+                },
+            )
+        return httpx.Response(204)
+
+    adapter = V0Adapter(httpx.AsyncClient(transport=httpx.MockTransport(handle)), api_key="key")
+
+    async def scenario() -> tuple[int, str]:
+        hooks = await adapter.list_hooks()
+        created = await adapter.create_hook(
+            "Created", "https://api.example/new", ("message.finished",)
+        )
+        await adapter.delete_hook("hook-1")
+        return len(hooks), created.id
+
+    assert asyncio.run(scenario()) == (1, "hook-2")
+    assert [request.url.path for request in requests] == [
+        "/v1/hooks",
+        "/v1/hooks",
+        "/v1/hooks/hook-1",
+    ]

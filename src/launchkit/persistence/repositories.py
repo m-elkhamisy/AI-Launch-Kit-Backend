@@ -10,11 +10,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from launchkit.persistence.models import (
     AssetRecord,
+    BuildRecord,
     IdempotencyRecord,
     JobRecord,
     MockupRecord,
     OperationRecord,
     ProjectRecord,
+    ProviderReferenceRecord,
+    StatusEventRecord,
+    WebhookDeliveryRecord,
 )
 
 
@@ -208,6 +212,160 @@ class PersistenceRepository:
         self._session.add(record)
         await self._session.flush()
         return record
+
+    async def add_build(self, *, project_id: str, provider: str) -> BuildRecord:
+        record = BuildRecord(id=new_id("bld"), project_id=project_id, provider=provider)
+        self._session.add(record)
+        await self._session.flush()
+        return record
+
+    async def get_build(self, build_id: str, owner_id: str) -> BuildRecord | None:
+        records = await self._session.scalars(
+            select(BuildRecord)
+            .join(ProjectRecord, BuildRecord.project_id == ProjectRecord.id)
+            .where(BuildRecord.id == build_id, ProjectRecord.owner_id == owner_id)
+        )
+        return records.one_or_none()
+
+    async def find_active_build(self, project_id: str) -> BuildRecord | None:
+        records = await self._session.scalars(
+            select(BuildRecord)
+            .where(
+                BuildRecord.project_id == project_id,
+                BuildRecord.status.in_(("queued", "submitting", "running", "processing_result")),
+            )
+            .order_by(BuildRecord.created_at.desc())
+            .limit(1)
+        )
+        return records.one_or_none()
+
+    async def add_provider_reference(
+        self,
+        *,
+        resource_type: str,
+        resource_id: str,
+        provider: str,
+        reference_type: str,
+        reference_value: str,
+    ) -> ProviderReferenceRecord:
+        record = ProviderReferenceRecord(
+            id=new_id("ref"),
+            resource_type=resource_type,
+            resource_id=resource_id,
+            provider=provider,
+            reference_type=reference_type,
+            reference_value=reference_value,
+        )
+        self._session.add(record)
+        await self._session.flush()
+        return record
+
+    async def get_provider_reference(
+        self, *, resource_type: str, resource_id: str, provider: str, reference_type: str
+    ) -> ProviderReferenceRecord | None:
+        records = await self._session.scalars(
+            select(ProviderReferenceRecord).where(
+                ProviderReferenceRecord.resource_type == resource_type,
+                ProviderReferenceRecord.resource_id == resource_id,
+                ProviderReferenceRecord.provider == provider,
+                ProviderReferenceRecord.reference_type == reference_type,
+            )
+        )
+        return records.one_or_none()
+
+    async def find_build_by_provider_reference(
+        self, *, provider: str, reference_type: str, reference_value: str
+    ) -> BuildRecord | None:
+        records = await self._session.scalars(
+            select(BuildRecord)
+            .join(
+                ProviderReferenceRecord,
+                and_(
+                    ProviderReferenceRecord.resource_type == "build",
+                    ProviderReferenceRecord.resource_id == BuildRecord.id,
+                ),
+            )
+            .where(
+                ProviderReferenceRecord.provider == provider,
+                ProviderReferenceRecord.reference_type == reference_type,
+                ProviderReferenceRecord.reference_value == reference_value,
+            )
+        )
+        return records.one_or_none()
+
+    async def add_status_event(
+        self,
+        *,
+        resource_type: str,
+        resource_id: str,
+        from_status: str | None,
+        to_status: str,
+        stage: str,
+        message: str,
+    ) -> StatusEventRecord:
+        latest = await self._session.scalar(
+            select(func.max(StatusEventRecord.sequence)).where(
+                StatusEventRecord.resource_type == resource_type,
+                StatusEventRecord.resource_id == resource_id,
+            )
+        )
+        record = StatusEventRecord(
+            id=new_id("evt"),
+            resource_type=resource_type,
+            resource_id=resource_id,
+            sequence=int(latest or 0) + 1,
+            from_status=from_status,
+            to_status=to_status,
+            stage=stage,
+            message=message,
+        )
+        self._session.add(record)
+        await self._session.flush()
+        return record
+
+    async def list_status_events(
+        self, *, resource_type: str, resource_id: str, after_sequence: int = 0
+    ) -> Sequence[StatusEventRecord]:
+        records = await self._session.scalars(
+            select(StatusEventRecord)
+            .where(
+                StatusEventRecord.resource_type == resource_type,
+                StatusEventRecord.resource_id == resource_id,
+                StatusEventRecord.sequence > after_sequence,
+            )
+            .order_by(StatusEventRecord.sequence)
+        )
+        return records.all()
+
+    async def add_webhook_delivery(
+        self,
+        *,
+        provider: str,
+        delivery_key: str,
+        event_type: str,
+        payload: dict[str, Any],
+    ) -> WebhookDeliveryRecord:
+        record = WebhookDeliveryRecord(
+            id=new_id("whd"),
+            provider=provider,
+            delivery_key=delivery_key,
+            event_type=event_type,
+            payload=payload,
+        )
+        self._session.add(record)
+        await self._session.flush()
+        return record
+
+    async def get_webhook_delivery(
+        self, *, provider: str, delivery_key: str
+    ) -> WebhookDeliveryRecord | None:
+        records = await self._session.scalars(
+            select(WebhookDeliveryRecord).where(
+                WebhookDeliveryRecord.provider == provider,
+                WebhookDeliveryRecord.delivery_key == delivery_key,
+            )
+        )
+        return records.one_or_none()
 
     async def lease_jobs(
         self,

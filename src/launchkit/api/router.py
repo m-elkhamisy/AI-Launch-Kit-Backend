@@ -3,16 +3,23 @@
 from io import BytesIO
 from typing import Annotated
 
-from fastapi import APIRouter, File, Header, UploadFile, status
+from fastapi import APIRouter, File, Header, Request, UploadFile, status
 from fastapi.responses import StreamingResponse
 
 from launchkit.api.catalogs import build_wizard_catalog
 from launchkit.api.dependencies import (
+    BuildServiceDependency,
+    CurrentUserDependency,
     ProjectServiceDependency,
     SettingsDependency,
+    V0WebhookServiceDependency,
     WorkflowServiceDependency,
 )
 from launchkit.api.schemas import HealthResponse, WizardCatalogResponse
+from launchkit.builds import BuildCreate, BuildView
+from launchkit.builds.sse import stream_build_events
+from launchkit.builds.webhooks import WebhookReceipt
+from launchkit.persistence import Database
 from launchkit.projects import ProjectDraft, ProjectPatch, ProjectView
 from launchkit.workflows import MockupSelection, MockupView, OperationView
 
@@ -120,3 +127,76 @@ async def get_asset_content(asset_id: str, service: WorkflowServiceDependency) -
             "font-src https: data:"
         )
     return StreamingResponse(BytesIO(content), media_type=asset.content_type, headers=headers)
+
+
+@api_router.post(
+    "/projects/{project_id}/builds",
+    response_model=BuildView,
+    status_code=status.HTTP_202_ACCEPTED,
+    tags=["builds"],
+)
+async def start_build(
+    project_id: str,
+    build: BuildCreate,
+    service: BuildServiceDependency,
+    idempotency_key: Annotated[str, Header(alias="Idempotency-Key")],
+) -> BuildView:
+    return await service.start(project_id, build, idempotency_key)
+
+
+@api_router.get("/builds/{build_id}", response_model=BuildView, tags=["builds"])
+async def get_build(build_id: str, service: BuildServiceDependency) -> BuildView:
+    return await service.get(build_id)
+
+
+@api_router.get("/builds/{build_id}/events", tags=["builds"])
+async def get_build_events(
+    build_id: str,
+    request: Request,
+    owner_id: CurrentUserDependency,
+    service: BuildServiceDependency,
+    settings: SettingsDependency,
+    last_event_id: Annotated[str | None, Header(alias="Last-Event-ID")] = None,
+) -> StreamingResponse:
+    await service.get(build_id)
+    try:
+        after_sequence = int(last_event_id or 0)
+    except ValueError:
+        after_sequence = 0
+    database: Database = request.app.state.database
+    return StreamingResponse(
+        stream_build_events(
+            database,
+            settings,
+            build_id=build_id,
+            owner_id=owner_id,
+            after_sequence=after_sequence,
+        ),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@api_router.get("/builds/{build_id}/download", tags=["builds"])
+async def download_build(build_id: str, service: BuildServiceDependency) -> StreamingResponse:
+    content, filename = await service.download(build_id)
+    return StreamingResponse(
+        BytesIO(content),
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
+@api_router.post(
+    "/webhooks/v0/{token}",
+    response_model=WebhookReceipt,
+    status_code=status.HTTP_202_ACCEPTED,
+    tags=["webhooks"],
+)
+async def receive_v0_webhook(
+    token: str, request: Request, service: V0WebhookServiceDependency
+) -> WebhookReceipt:
+    return await service.receive(token, await request.body())

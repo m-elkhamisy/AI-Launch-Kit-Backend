@@ -48,6 +48,14 @@ class Settings(BaseSettings):
     v0_api_key: SecretStr | None = None
     v0_base_url: str = "https://api.v0.dev/v1"
     v0_model: str = "v0-max"
+    v0_webhook_token: SecretStr | None = None
+    v0_webhook_callback_url: str | None = None
+    webhook_max_bytes: int = Field(default=1024 * 1024, ge=1024)
+    build_reconcile_initial_seconds: int = Field(default=15, ge=1)
+    build_reconcile_max_seconds: int = Field(default=900, ge=1)
+    build_timeout_seconds: int = Field(default=3600, ge=60)
+    sse_poll_seconds: float = Field(default=1.0, gt=0)
+    sse_heartbeat_seconds: float = Field(default=15.0, gt=0)
     local_data_dir: Path = Path("local_data")
     s3_bucket: str | None = None
     s3_prefix: str = "submissions/"

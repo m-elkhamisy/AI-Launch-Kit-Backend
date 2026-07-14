@@ -11,6 +11,8 @@ from pydantic import ValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from launchkit.assets import UploadTooLargeError, UploadValidationError
+from launchkit.builds import BuildNotFoundError
+from launchkit.builds.webhooks import WebhookAccessError, WebhookPayloadError
 from launchkit.core.exceptions import ConfigurationError, DomainError, ProviderError
 from launchkit.projects import ProjectNotFoundError
 from launchkit.workflows import WorkflowNotFoundError
@@ -86,6 +88,22 @@ def register_error_handlers(app: FastAPI) -> None:
         return error_response(
             request, status_code=404, code="resource_not_found", message="Resource not found."
         )
+
+    @app.exception_handler(BuildNotFoundError)
+    async def handle_build_not_found(request: Request, _: BuildNotFoundError) -> JSONResponse:
+        return error_response(
+            request, status_code=404, code="build_not_found", message="Build not found."
+        )
+
+    @app.exception_handler(WebhookAccessError)
+    async def handle_webhook_access(request: Request, _: WebhookAccessError) -> JSONResponse:
+        return error_response(
+            request, status_code=404, code="not_found", message="Resource not found."
+        )
+
+    @app.exception_handler(WebhookPayloadError)
+    async def handle_webhook_payload(request: Request, exc: WebhookPayloadError) -> JSONResponse:
+        return error_response(request, status_code=400, code="invalid_webhook", message=str(exc))
 
     @app.exception_handler(ConfigurationError)
     async def handle_configuration(request: Request, _: ConfigurationError) -> JSONResponse:

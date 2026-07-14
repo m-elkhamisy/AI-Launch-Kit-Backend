@@ -7,6 +7,8 @@ from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from launchkit.assets import AssetBlobStore
+from launchkit.builds import BuildService
+from launchkit.builds.webhooks import V0WebhookService
 from launchkit.core.config import Settings
 from launchkit.persistence import Database, PersistenceRepository
 from launchkit.projects import ProjectService
@@ -44,6 +46,26 @@ def get_workflow_service(
     return WorkflowService(PersistenceRepository(session), owner_id, settings, store)
 
 
+def get_build_service(
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    owner_id: Annotated[str, Depends(get_current_user_id)],
+    settings: Annotated[Settings, Depends(get_request_settings)],
+) -> BuildService:
+    store = cast(AssetBlobStore, request.app.state.asset_store)
+    return BuildService(PersistenceRepository(session), owner_id, settings, store)
+
+
+def get_v0_webhook_service(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    settings: Annotated[Settings, Depends(get_request_settings)],
+) -> V0WebhookService:
+    return V0WebhookService(PersistenceRepository(session), settings)
+
+
 SettingsDependency = Annotated[Settings, Depends(get_request_settings)]
 ProjectServiceDependency = Annotated[ProjectService, Depends(get_project_service)]
 WorkflowServiceDependency = Annotated[WorkflowService, Depends(get_workflow_service)]
+BuildServiceDependency = Annotated[BuildService, Depends(get_build_service)]
+V0WebhookServiceDependency = Annotated[V0WebhookService, Depends(get_v0_webhook_service)]
+CurrentUserDependency = Annotated[str, Depends(get_current_user_id)]
