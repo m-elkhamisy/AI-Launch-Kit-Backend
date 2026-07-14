@@ -43,11 +43,11 @@ verified. Their reusable behavior now has tested equivalents under `src/launchki
 
 ## Team Migration Map
 
-| Source work | Where it lives now |
-|---|---|
-| Anas's Python/FastAPI implementation | `intake/`, `guardrails/`, `storage/`, `generation/legacy_*`, `adapters/v0.py`, and `deployment/` |
-| Haseeb's TypeScript/Next.js business logic | `intake/`, `design/`, `grounding/`, `profiles/`, `planning/`, `generation/`, `images/`, `html/`, and `adapters/` |
-| Karim's standalone Python generator | Prompt constraints, profile/image handling, planning, page building, HTML repair, and archives in the corresponding capability packages |
+| Source work                                | Where it lives now                                                                                                                      |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Anas's Python/FastAPI implementation       | `intake/`, `guardrails/`, `storage/`, `generation/legacy_*`, `adapters/v0.py`, and `deployment/`                                        |
+| Haseeb's TypeScript/Next.js business logic | `intake/`, `design/`, `grounding/`, `profiles/`, `planning/`, `generation/`, `images/`, `html/`, and `adapters/`                        |
+| Karim's standalone Python generator        | Prompt constraints, profile/image handling, planning, page building, HTML repair, and archives in the corresponding capability packages |
 
 See [`docs/contributor-migration-guide.md`](docs/contributor-migration-guide.md) for
 the file-level crosswalk, intentional exclusions, compatibility decisions, and
