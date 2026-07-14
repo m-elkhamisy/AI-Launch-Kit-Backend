@@ -24,6 +24,13 @@ class Settings(BaseSettings):
     debug: bool = False
     log_level: str = Field(default="INFO", pattern=r"^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$")
     log_json: bool = False
+    database_url: str = "postgresql+asyncpg://launchkit:launchkit@localhost:5432/launchkit"
+    database_echo: bool = False
+    testing_user_id: str = "user_testing"
+    frontend_origins: str = "http://localhost:5173"
+    worker_poll_seconds: float = Field(default=1.0, gt=0)
+    worker_lease_seconds: int = Field(default=120, ge=10)
+    worker_batch_size: int = Field(default=10, ge=1, le=100)
     openrouter_api_key: SecretStr | None = None
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     site_url: str = "http://localhost:8000"
