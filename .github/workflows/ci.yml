@@ -1,0 +1,23 @@
+name: Backend CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - codex/aws-dokploy-readiness
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install ".[dev]"
+      - run: ruff check src tests
+      - run: mypy src
+      - run: pytest --cov=launchkit --cov-report=term-missing --cov-fail-under=90
+      - run: docker build -t ai-launch-kit-backend:ci .

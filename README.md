@@ -71,6 +71,11 @@ docker compose up -d postgres
 Alternatively, `docker compose up --build` runs PostgreSQL, migrations, the API, and
 the durable worker together. Set `LAUNCHKIT_POSTGRES_PORT` when host port 5432 is in use.
 
+For restricted AWS staging through Dokploy, use `docker-compose.dokploy.yml` and
+follow [`docs/aws-dokploy-staging.md`](docs/aws-dokploy-staging.md). That topology
+keeps PostgreSQL private, runs migrations before application startup, uses S3 for
+shared generated assets, and enables the backend-enforced fixed-account gate.
+
 The OpenAPI documentation is available at `http://127.0.0.1:8000/docs`. See
 [`docs/api-v1.md`](docs/api-v1.md) for the implemented contracts and frontend mapping.
 See [`docs/v0-hooks.md`](docs/v0-hooks.md) before provisioning an environment callback.

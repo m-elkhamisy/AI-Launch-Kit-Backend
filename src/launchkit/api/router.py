@@ -5,7 +5,16 @@ from typing import Annotated
 
 from fastapi import APIRouter, File, Header, Request, UploadFile, status
 from fastapi.responses import StreamingResponse
+from sqlalchemy import text
 
+from launchkit.api.auth import (
+    AccessCodeRequest,
+    AccessCodeResponse,
+    AuthTokenResponse,
+    VerifyAccessCodeRequest,
+    request_access_code,
+    verify_access_code,
+)
 from launchkit.api.catalogs import build_wizard_catalog
 from launchkit.api.dependencies import (
     BuildServiceDependency,
@@ -33,6 +42,39 @@ api_router = APIRouter(prefix="/api/v1")
 @api_router.get("/health", response_model=HealthResponse, tags=["system"])
 async def health(settings: SettingsDependency) -> HealthResponse:
     return HealthResponse(status="ok", environment=settings.environment, version="1.0.0")
+
+
+@api_router.get("/ready", response_model=HealthResponse, tags=["system"])
+async def readiness(request: Request, settings: SettingsDependency) -> HealthResponse:
+    database: Database = request.app.state.database
+    async with database.session() as session:
+        await session.execute(text("SELECT 1"))
+    return HealthResponse(status="ready", environment=settings.environment, version="1.0.0")
+
+
+@api_router.post(
+    "/auth/request-code",
+    response_model=AccessCodeResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    tags=["authentication"],
+)
+async def request_code(
+    request_body: AccessCodeRequest,
+    settings: SettingsDependency,
+) -> AccessCodeResponse:
+    return request_access_code(settings, request_body.email)
+
+
+@api_router.post(
+    "/auth/verify",
+    response_model=AuthTokenResponse,
+    tags=["authentication"],
+)
+async def verify_code(
+    request_body: VerifyAccessCodeRequest,
+    settings: SettingsDependency,
+) -> AuthTokenResponse:
+    return verify_access_code(settings, request_body.email, request_body.code)
 
 
 @api_router.get("/catalogs/wizard", response_model=WizardCatalogResponse, tags=["catalogs"])

@@ -4,8 +4,10 @@ from collections.abc import AsyncIterator
 from typing import Annotated, cast
 
 from fastapi import Depends, Request
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from launchkit.api.auth import authenticate_token
 from launchkit.assets import AssetBlobStore
 from launchkit.builds import BuildService
 from launchkit.builds.webhooks import V0WebhookService
@@ -16,13 +18,27 @@ from launchkit.persistence import Database, PersistenceRepository
 from launchkit.projects import ProjectService
 from launchkit.workflows import WorkflowService
 
+bearer_scheme = HTTPBearer(auto_error=False)
+
 
 def get_request_settings(request: Request) -> Settings:
     return cast(Settings, request.app.state.settings)
 
 
-def get_current_user_id(settings: Annotated[Settings, Depends(get_request_settings)]) -> str:
-    return settings.testing_user_id
+def get_current_user_id(
+    settings: Annotated[Settings, Depends(get_request_settings)],
+    credentials: Annotated[
+        HTTPAuthorizationCredentials | None,
+        Depends(bearer_scheme),
+    ],
+) -> str:
+    if settings.auth_mode == "testing":
+        return settings.testing_user_id
+    if credentials is None or credentials.scheme.lower() != "bearer":
+        from launchkit.core.exceptions import AuthenticationError
+
+        raise AuthenticationError("Authentication is required.")
+    return authenticate_token(settings, credentials.credentials)
 
 
 async def get_session(request: Request) -> AsyncIterator[AsyncSession]:

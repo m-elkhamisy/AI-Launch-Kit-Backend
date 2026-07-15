@@ -4,10 +4,11 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, SecretStr
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 Environment = Literal["local", "test", "staging", "production"]
+AuthMode = Literal["testing", "fixed_otp"]
 
 
 class Settings(BaseSettings):
@@ -27,6 +28,11 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://launchkit:launchkit@localhost:5432/launchkit"
     database_echo: bool = False
     testing_user_id: str = "user_testing"
+    auth_mode: AuthMode = "testing"
+    auth_email: str = "test@innovationcity.com"
+    auth_otp: SecretStr | None = None
+    auth_token_secret: SecretStr | None = None
+    auth_token_ttl_seconds: int = Field(default=8 * 60 * 60, ge=300, le=7 * 24 * 60 * 60)
     frontend_origins: str = "http://localhost:5173"
     worker_poll_seconds: float = Field(default=1.0, gt=0)
     worker_lease_seconds: int = Field(default=120, ge=10)
@@ -62,10 +68,31 @@ class Settings(BaseSettings):
     s3_asset_prefix: str = "assets/"
     aws_region: str = "me-central-1"
     vercel_token: SecretStr | None = None
-    vercel_team_id: str | None = None
+    vercel_team_id: str | None = Field(default=None, pattern=r"^team_[A-Za-z0-9]+$")
     vercel_base_url: str = "https://api.vercel.com"
     vercel_webhook_secret: SecretStr | None = None
     claim_return_url: str = "http://localhost:5173/"
+
+    @field_validator(
+        "auth_otp",
+        "auth_token_secret",
+        "openrouter_api_key",
+        "pexels_api_key",
+        "v0_api_key",
+        "v0_webhook_token",
+        "vercel_token",
+        "vercel_webhook_secret",
+        "utility_model",
+        "v0_webhook_callback_url",
+        "s3_bucket",
+        "vercel_team_id",
+        mode="before",
+    )
+    @classmethod
+    def empty_values_are_unset(cls, value: object) -> object:
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
 
 
 @lru_cache

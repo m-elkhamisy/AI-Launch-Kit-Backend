@@ -5,7 +5,7 @@ from launchkit.core.config import Settings
 
 
 def test_settings_defaults() -> None:
-    settings = Settings()
+    settings = Settings(_env_file=None)
 
     assert settings.app_name == "AI Launch Kit Backend"
     assert settings.environment == "local"
@@ -22,7 +22,7 @@ def test_settings_read_prefixed_environment(monkeypatch: pytest.MonkeyPatch) -> 
     monkeypatch.setenv("LAUNCHKIT_OPENROUTER_API_KEY", "secret")
     monkeypatch.setenv("LAUNCHKIT_OPENROUTER_SEQUENTIAL", "true")
 
-    settings = Settings()
+    settings = Settings(_env_file=None)
 
     assert settings.environment == "test"
     assert settings.log_json is True
@@ -33,4 +33,18 @@ def test_settings_read_prefixed_environment(monkeypatch: pytest.MonkeyPatch) -> 
 
 def test_settings_reject_invalid_log_level() -> None:
     with pytest.raises(ValidationError):
-        Settings(log_level="verbose")
+        Settings(log_level="verbose", _env_file=None)
+
+
+def test_empty_optional_values_are_normalized_and_team_ids_are_validated() -> None:
+    settings = Settings(
+        openrouter_api_key="   ",
+        vercel_team_id="",
+        _env_file=None,
+    )
+
+    assert settings.openrouter_api_key is None
+    assert settings.vercel_team_id is None
+
+    with pytest.raises(ValidationError):
+        Settings(vercel_team_id="# optional for personal accounts", _env_file=None)

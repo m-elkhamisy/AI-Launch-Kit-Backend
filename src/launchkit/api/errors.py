@@ -13,7 +13,12 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from launchkit.assets import UploadTooLargeError, UploadValidationError
 from launchkit.builds import BuildNotFoundError
 from launchkit.builds.webhooks import WebhookAccessError, WebhookPayloadError
-from launchkit.core.exceptions import ConfigurationError, DomainError, ProviderError
+from launchkit.core.exceptions import (
+    AuthenticationError,
+    ConfigurationError,
+    DomainError,
+    ProviderError,
+)
 from launchkit.deployment.service import DeploymentNotFoundError
 from launchkit.deployment.webhooks import (
     VercelWebhookAccessError,
@@ -60,6 +65,15 @@ def validation_details(errors: Sequence[Mapping[str, Any]]) -> list[dict[str, An
 
 
 def register_error_handlers(app: FastAPI) -> None:
+    @app.exception_handler(AuthenticationError)
+    async def handle_authentication(request: Request, exc: AuthenticationError) -> JSONResponse:
+        return error_response(
+            request,
+            status_code=401,
+            code="authentication_required",
+            message=str(exc),
+        )
+
     @app.exception_handler(RequestValidationError)
     async def handle_request_validation(
         request: Request, exc: RequestValidationError

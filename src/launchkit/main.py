@@ -53,7 +53,13 @@ def create_app(
         ],
         allow_credentials=False,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=["Accept", "Content-Type", "Idempotency-Key", "Last-Event-ID"],
+        allow_headers=[
+            "Accept",
+            "Authorization",
+            "Content-Type",
+            "Idempotency-Key",
+            "Last-Event-ID",
+        ],
     )
     register_error_handlers(application)
     application.include_router(api_router)
