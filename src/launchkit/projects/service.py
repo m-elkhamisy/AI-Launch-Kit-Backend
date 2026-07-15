@@ -5,9 +5,9 @@ from typing import Any
 from pydantic import BaseModel
 
 from launchkit.core.exceptions import DomainError
-from launchkit.persistence.models import ProjectRecord
+from launchkit.persistence.models import BuildRecord, ProjectRecord
 from launchkit.persistence.repositories import PersistenceRepository
-from launchkit.projects.models import ProjectDraft, ProjectPatch, ProjectView
+from launchkit.projects.models import ProjectDraft, ProjectPatch, ProjectSummaryView, ProjectView
 from launchkit.workflows.service import assets_view, mockups_view
 
 
@@ -29,6 +29,18 @@ class ProjectService:
         )
         await self._repository.commit()
         return await self._view(record)
+
+    async def list(self) -> list[ProjectSummaryView]:
+        records = list(await self._repository.list_projects(self._owner_id))
+        build_ids = [record.latest_build_id for record in records if record.latest_build_id]
+        builds = {
+            build.id: build
+            for build in await self._repository.get_builds_by_ids(build_ids, self._owner_id)
+        }
+        return [
+            self._summary(record, builds.get(record.latest_build_id or ""))
+            for record in records
+        ]
 
     async def get(self, project_id: str) -> ProjectView:
         return await self._view(await self._record(project_id))
@@ -88,4 +100,24 @@ class ProjectService:
                 "createdAt": record.created_at,
                 "updatedAt": record.updated_at,
             }
+        )
+
+    @staticmethod
+    def _summary(record: ProjectRecord, build: BuildRecord | None) -> ProjectSummaryView:
+        company_name = str(record.business.get("companyName") or "").strip()
+        download_url = (
+            f"/api/v1/builds/{build.id}/download"
+            if build is not None and build.status == "completed"
+            else None
+        )
+        return ProjectSummaryView(
+            id=record.id,
+            status=record.status,
+            company_name=company_name,
+            latest_build_id=record.latest_build_id,
+            latest_build_status=build.status if build is not None else None,
+            preview_url=build.preview_url if build is not None else None,
+            download_url=download_url,
+            created_at=record.created_at,
+            updated_at=record.updated_at,
         )

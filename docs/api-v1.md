@@ -10,6 +10,7 @@ server-side `LAUNCHKIT_TESTING_USER_ID`; clients must not send a user ID.
 | `GET` | `/health` | Returns API status, environment, and contract version. |
 | `GET` | `/catalogs/wizard` | Returns authoritative wizard choices and stable IDs. |
 | `POST` | `/projects` | Creates a persisted project draft. An empty JSON object uses V1 defaults. |
+| `GET` | `/projects` | Lists the current user's project summaries, newest first. |
 | `GET` | `/projects/{project_id}` | Returns the current user's complete persisted draft. |
 | `PATCH` | `/projects/{project_id}` | Merges supplied business/design fields or replaces `pageLayout`. |
 | `POST` | `/projects/{project_id}/profile-extractions` | Validates and stores a multipart profile, then returns a queued operation. |

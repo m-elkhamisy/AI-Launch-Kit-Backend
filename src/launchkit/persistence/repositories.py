@@ -58,6 +58,26 @@ class PersistenceRepository:
         )
         return records.one_or_none()
 
+    async def list_projects(self, owner_id: str) -> Sequence[ProjectRecord]:
+        records = await self._session.scalars(
+            select(ProjectRecord)
+            .where(ProjectRecord.owner_id == owner_id)
+            .order_by(ProjectRecord.updated_at.desc())
+        )
+        return records.all()
+
+    async def get_builds_by_ids(
+        self, build_ids: Sequence[str], owner_id: str
+    ) -> Sequence[BuildRecord]:
+        if not build_ids:
+            return []
+        records = await self._session.scalars(
+            select(BuildRecord)
+            .join(ProjectRecord, BuildRecord.project_id == ProjectRecord.id)
+            .where(BuildRecord.id.in_(tuple(build_ids)), ProjectRecord.owner_id == owner_id)
+        )
+        return records.all()
+
     async def enqueue_job(
         self,
         kind: str,

@@ -21,3 +21,4 @@ def test_openapi_metadata_and_contract_are_available() -> None:
     assert schema["info"]["title"] == "AI Launch Kit Backend"
     assert schema["info"]["version"] == "1.0.0"
     assert schema["paths"]["/api/v1/projects"]["post"]["responses"]["201"]
+    assert schema["paths"]["/api/v1/projects"]["get"]["responses"]["200"]

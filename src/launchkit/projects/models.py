@@ -207,3 +207,15 @@ class ProjectView(ProjectDraft):
     latest_deployment_id: str | None = None
     created_at: datetime
     updated_at: datetime
+
+
+class ProjectSummaryView(AliasedModel):
+    id: str
+    status: str
+    company_name: str
+    latest_build_id: str | None = None
+    latest_build_status: str | None = None
+    preview_url: str | None = None
+    download_url: str | None = None
+    created_at: datetime
+    updated_at: datetime

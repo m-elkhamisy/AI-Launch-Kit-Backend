@@ -33,7 +33,7 @@ from launchkit.builds.webhooks import WebhookReceipt
 from launchkit.deployment import DeploymentCreate, DeploymentView
 from launchkit.deployment.webhooks import VercelWebhookReceipt
 from launchkit.persistence import Database
-from launchkit.projects import ProjectDraft, ProjectPatch, ProjectView
+from launchkit.projects import ProjectDraft, ProjectPatch, ProjectSummaryView, ProjectView
 from launchkit.workflows import MockupSelection, MockupView, OperationView
 
 api_router = APIRouter(prefix="/api/v1")
@@ -90,6 +90,11 @@ async def wizard_catalog() -> WizardCatalogResponse:
 )
 async def create_project(draft: ProjectDraft, service: ProjectServiceDependency) -> ProjectView:
     return await service.create(draft)
+
+
+@api_router.get("/projects", response_model=list[ProjectSummaryView], tags=["projects"])
+async def list_projects(service: ProjectServiceDependency) -> list[ProjectSummaryView]:
+    return await service.list()
 
 
 @api_router.get("/projects/{project_id}", response_model=ProjectView, tags=["projects"])

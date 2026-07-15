@@ -178,3 +178,59 @@ def test_unknown_catalog_id_and_extra_fields_are_rejected(tmp_path: Path) -> Non
     assert unknown.json()["error"]["code"] == "invalid_input"
     assert extra.status_code == 422
     assert extra.json()["error"]["details"][0]["field"] == "body.ownerId"
+
+
+def test_list_projects_returns_owner_summaries_newest_first(tmp_path: Path) -> None:
+    with api_client(tmp_path) as client:
+        first = create_project(client)
+        second = create_project(client)
+        client.patch(
+            f"/api/v1/projects/{second['id']}",
+            json={"business": {"companyName": "Northstar"}},
+        )
+        listed = client.get("/api/v1/projects")
+
+    assert listed.status_code == 200
+    body = listed.json()
+    assert len(body) == 2
+    assert body[0]["id"] == second["id"]
+    assert body[0]["companyName"] == "Northstar"
+    assert body[0]["status"] == "draft"
+    assert body[0]["latestBuildId"] is None
+    assert body[0]["latestBuildStatus"] is None
+    assert body[0]["previewUrl"] is None
+    assert body[0]["downloadUrl"] is None
+    assert body[1]["id"] == first["id"]
+    assert body[1]["companyName"] == ""
+
+
+def test_list_projects_includes_latest_build_summary(tmp_path: Path) -> None:
+    with api_client(tmp_path) as client:
+        project = create_project(client)
+        database = client.app.state.database
+
+        async def attach_completed_build() -> str:
+            async with database.session() as session:
+                from launchkit.persistence.repositories import PersistenceRepository
+
+                repository = PersistenceRepository(session)
+                record = await repository.get_project(project["id"], "user_testing")
+                assert record is not None
+                build = await repository.add_build(project_id=record.id, provider="v0")
+                build.status = "completed"
+                build.preview_url = "https://preview.example"
+                record.latest_build_id = build.id
+                record.status = "build_completed"
+                await repository.commit()
+                return build.id
+
+        build_id = asyncio.run(attach_completed_build())
+        listed = client.get("/api/v1/projects")
+
+    assert listed.status_code == 200
+    item = listed.json()[0]
+    assert item["id"] == project["id"]
+    assert item["latestBuildId"] == build_id
+    assert item["latestBuildStatus"] == "completed"
+    assert item["previewUrl"] == "https://preview.example"
+    assert item["downloadUrl"] == f"/api/v1/builds/{build_id}/download"
