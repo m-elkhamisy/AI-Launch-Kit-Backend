@@ -154,7 +154,7 @@ class IdempotencyRecord(Timestamped, Base):
     __tablename__ = "idempotency_keys"
     __table_args__ = (UniqueConstraint("owner_id", "scope", "key_hash"),)
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
     owner_id: Mapped[str] = mapped_column(String(128))
     scope: Mapped[str] = mapped_column(String(128))
     key_hash: Mapped[str] = mapped_column(String(64))

@@ -7,6 +7,7 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import inspect, select
+from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from launchkit.core.config import Settings
@@ -29,13 +30,27 @@ def test_initial_migration_round_trip(tmp_path: Path, monkeypatch: pytest.Monkey
 
     command.upgrade(config, "head")
 
-    async def table_names() -> set[str]:
+    async def schema_details() -> tuple[set[str], int | None, int | None]:
         database = create_database(Settings(environment="test", database_url=url))
         async with database.engine.connect() as connection:
-            names = await connection.run_sync(lambda sync: set(inspect(sync).get_table_names()))
-        await database.close()
-        return names
 
+            def inspect_schema(sync: Connection) -> tuple[set[str], int | None, int | None]:
+                inspector = inspect(sync)
+                names = set(inspector.get_table_names())
+                columns = inspector.get_columns("idempotency_keys")
+                record_id = next(column for column in columns if column["name"] == "id")
+                scope = next(column for column in columns if column["name"] == "scope")
+                return (
+                    names,
+                    getattr(record_id["type"], "length", None),
+                    getattr(scope["type"], "length", None),
+                )
+
+            details = await connection.run_sync(inspect_schema)
+        await database.close()
+        return details
+
+    table_names, id_length, scope_length = asyncio.run(schema_details())
     assert {
         "alembic_version",
         "assets",
@@ -49,9 +64,19 @@ def test_initial_migration_round_trip(tmp_path: Path, monkeypatch: pytest.Monkey
         "provider_references",
         "status_events",
         "webhook_deliveries",
-    } <= asyncio.run(table_names())
+    } <= table_names
+    assert id_length == 64
+    assert scope_length == 128
 
     command.downgrade(config, "base")
+
+    async def table_names() -> set[str]:
+        database = create_database(Settings(environment="test", database_url=url))
+        async with database.engine.connect() as connection:
+            names = await connection.run_sync(lambda sync: set(inspect(sync).get_table_names()))
+        await database.close()
+        return names
+
     assert asyncio.run(table_names()) == {"alembic_version"}
 
 
