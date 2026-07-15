@@ -33,7 +33,10 @@ class Settings(BaseSettings):
     auth_otp: SecretStr | None = None
     auth_token_secret: SecretStr | None = None
     auth_token_ttl_seconds: int = Field(default=8 * 60 * 60, ge=300, le=7 * 24 * 60 * 60)
-    frontend_origins: str = "http://localhost:5173"
+    frontend_origins: str = (
+        "http://localhost:5173,"
+        "https://ai-launch-kitt-git-codex-aws-dokploy-readiness-innovation-city.vercel.app"
+    )
     worker_poll_seconds: float = Field(default=1.0, gt=0)
     worker_lease_seconds: int = Field(default=120, ge=10)
     worker_batch_size: int = Field(default=10, ge=1, le=100)

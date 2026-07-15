@@ -54,7 +54,7 @@ LAUNCHKIT_AUTH_OTP=123456
 LAUNCHKIT_AUTH_TOKEN_SECRET=<at-least-32-random-bytes>
 LAUNCHKIT_AUTH_TOKEN_TTL_SECONDS=28800
 
-LAUNCHKIT_FRONTEND_ORIGINS=https://<amplify-production-origin>
+LAUNCHKIT_FRONTEND_ORIGINS=https://ai-launch-kitt-git-codex-aws-dokploy-readiness-innovation-city.vercel.app,https://<amplify-production-origin>
 LAUNCHKIT_SITE_URL=https://<api-domain>
 LAUNCHKIT_CLAIM_RETURN_URL=https://<amplify-production-origin>/
 
