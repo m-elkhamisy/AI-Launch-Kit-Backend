@@ -13,6 +13,7 @@ from launchkit.generation.models import (
     V0ChatPrivacy,
     V0GenerationResult,
     V0HandoffResult,
+    V0Hook,
 )
 
 
@@ -125,6 +126,32 @@ class V0Adapter:
             raise ProviderError("v0 did not return a web URL for this chat")
         return V0HandoffResult(chat_id=chat_id, claim_url=web_url, privacy=privacy)
 
+    async def list_hooks(self) -> list[V0Hook]:
+        response = await self._request("GET", "/hooks")
+        if response.is_error:
+            raise self._response_error(response, "v0 hook listing")
+        try:
+            payload: Any = response.json()
+        except ValueError as exc:
+            raise ProviderError("v0 returned invalid hook JSON") from exc
+        items = payload.get("hooks", []) if isinstance(payload, Mapping) else payload
+        return (
+            [self._to_hook(item) for item in items if isinstance(item, Mapping)]
+            if isinstance(items, list)
+            else []
+        )
+
+    async def create_hook(self, name: str, url: str, events: Sequence[str]) -> V0Hook:
+        payload = await self._json_request(
+            "POST", "/hooks", json={"name": name, "url": url, "events": list(events)}
+        )
+        return self._to_hook(payload)
+
+    async def delete_hook(self, hook_id: str) -> None:
+        response = await self._request("DELETE", f"/hooks/{hook_id}")
+        if response.is_error and response.status_code != 404:
+            raise self._response_error(response, "v0 hook deletion")
+
     async def _json_request(self, method: str, path: str, **kwargs: Any) -> Mapping[str, Any]:
         return self._parse_response(await self._request(method, path, **kwargs))
 
@@ -181,12 +208,38 @@ class V0Adapter:
         web_url = chat.get("webUrl")
         demo_url = version_map.get("demoUrl")
         files = version_map.get("files")
+        file_names = (
+            [
+                str(item.get("name") or item.get("file"))
+                for item in files
+                if isinstance(item, Mapping) and (item.get("name") or item.get("file"))
+            ]
+            if isinstance(files, list)
+            else []
+        )
+        version_id = version_map.get("id")
         return V0GenerationResult(
             chat_id=chat_id,
             web_url=web_url if isinstance(web_url, str) else None,
             demo_url=demo_url if isinstance(demo_url, str) else None,
             status=status,
             file_count=len(files) if isinstance(files, list) else 0,
+            version_id=version_id if isinstance(version_id, str) else None,
+            files=file_names,
+        )
+
+    @staticmethod
+    def _to_hook(payload: Mapping[str, Any]) -> V0Hook:
+        hook_id = payload.get("id")
+        url = payload.get("url")
+        if not isinstance(hook_id, str) or not isinstance(url, str):
+            raise ProviderError("v0 returned an invalid hook")
+        events = payload.get("events")
+        return V0Hook(
+            id=hook_id,
+            name=str(payload.get("name") or "AI Launch Kit"),
+            url=url,
+            events=[str(event) for event in events] if isinstance(events, list) else [],
         )
 
     @staticmethod

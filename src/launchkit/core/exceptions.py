@@ -17,6 +17,10 @@ class ConfigurationError(ApplicationError):
     """Raised when required runtime configuration is invalid or missing."""
 
 
+class AuthenticationError(ApplicationError):
+    """Raised when staging credentials or access tokens are invalid."""
+
+
 class ProviderError(ApplicationError):
     """Normalized external-provider failure without SDK-specific objects."""
 

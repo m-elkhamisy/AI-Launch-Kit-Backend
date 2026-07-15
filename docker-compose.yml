@@ -1,0 +1,54 @@
+x-launchkit-env-files: &launchkit-env-files
+  - path: .env.example
+  - path: .env
+    required: false
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: launchkit
+      POSTGRES_PASSWORD: launchkit
+      POSTGRES_USER: launchkit
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U launchkit -d launchkit"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "${LAUNCHKIT_POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - launchkit_postgres:/var/lib/postgresql/data
+
+  migrate:
+    build: .
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file: *launchkit-env-files
+    environment: &launchkit-environment
+      LAUNCHKIT_DATABASE_URL: postgresql+asyncpg://launchkit:launchkit@postgres:5432/launchkit
+    restart: "no"
+
+  api:
+    build: .
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    env_file: *launchkit-env-files
+    environment: *launchkit-environment
+    ports:
+      - "8000:8000"
+
+  worker:
+    build: .
+    command: ["python", "-m", "launchkit.worker"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    env_file: *launchkit-env-files
+    environment: *launchkit-environment
+
+volumes:
+  launchkit_postgres:

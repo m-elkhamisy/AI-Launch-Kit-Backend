@@ -1,0 +1,248 @@
+"""Durable worker handlers for profile extraction and mockup generation."""
+
+import base64
+import hashlib
+import uuid
+from collections.abc import Awaitable, Callable
+from datetime import UTC, datetime
+
+import httpx
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from launchkit.adapters.llm_queue import RequestQueue
+from launchkit.adapters.openrouter import OpenRouterAdapter
+from launchkit.adapters.pexels import PexelsAdapter
+from launchkit.assets import AssetBlobStore, safe_filename
+from launchkit.core.config import Settings
+from launchkit.core.exceptions import ConfigurationError, ProviderError
+from launchkit.generation.briefing import BriefService
+from launchkit.generation.html_generation import HtmlGenerationService
+from launchkit.generation.mockups import MockupGenerationService
+from launchkit.persistence.models import AssetRecord, JobRecord, OperationRecord, ProjectRecord
+from launchkit.persistence.repositories import PersistenceRepository
+from launchkit.profiles import ExtractedImage, ProfileExtractionService
+from launchkit.projects.catalogs import BUSINESS_CATEGORIES
+from launchkit.projects.models import BusinessDraft, DesignDraft
+from launchkit.workflows.service import asset_view, mockup_view
+
+CATEGORY_LABELS = {item.id: item.label for item in BUSINESS_CATEGORIES}
+
+
+class WorkflowJobHandlers:
+    def __init__(
+        self,
+        asset_store: AssetBlobStore,
+        *,
+        profile_service: ProfileExtractionService | None,
+        mockup_service: MockupGenerationService | None,
+    ) -> None:
+        self._asset_store = asset_store
+        self._profile_service = profile_service
+        self._mockup_service = mockup_service
+
+    @property
+    def handlers(
+        self,
+    ) -> dict[str, Callable[[JobRecord, AsyncSession], Awaitable[None]]]:
+        return {
+            "profile.extract": self.profile_extract,
+            "mockups.generate": self.generate_mockups,
+        }
+
+    async def profile_extract(self, job: JobRecord, session: AsyncSession) -> None:
+        operation = await self._start(job, session)
+        try:
+            if self._profile_service is None:
+                raise ConfigurationError("OpenRouter is not configured")
+            asset_id = str(job.payload["assetId"])
+            asset = await session.get(AssetRecord, asset_id)
+            project = await session.get(ProjectRecord, str(job.payload["projectId"]))
+            if asset is None or project is None:
+                raise RuntimeError("Profile workflow resources are missing")
+            content = await self._asset_store.get(asset.storage_key)
+            result = await self._profile_service.extract(content, asset.filename)
+            repository = PersistenceRepository(session)
+            image_views: list[dict[str, object]] = []
+            for image in result.images:
+                image_content, content_type = decode_data_url(image.data_url)
+                filename = safe_filename(image.filename, "profile-image")
+                storage_key = f"projects/{project.id}/profile-images/{uuid.uuid4().hex}-{filename}"
+                await self._asset_store.put(storage_key, image_content, content_type)
+                record = await repository.add_asset(
+                    project_id=project.id,
+                    kind="profile_image",
+                    storage_key=storage_key,
+                    filename=filename,
+                    label=image.label,
+                    content_type=content_type,
+                    size=len(image_content),
+                    sha256=hashlib.sha256(image_content).hexdigest(),
+                )
+                image_views.append(asset_view(record).model_dump(by_alias=True))
+
+            fields = result.fields.model_dump(by_alias=True, exclude_none=True)
+            project.extracted_profile_fields = fields
+            project.business = merge_empty(project.business, fields)
+            hints = result.design_hints.model_dump(by_alias=True, exclude_none=True)
+            project.design = merge_empty(project.design, hints)
+            operation.result = {
+                "fields": fields,
+                "designHints": hints,
+                "assets": image_views,
+                "sourceFilename": result.source_filename,
+                "warnings": result.warnings,
+            }
+            self._complete(operation)
+        except Exception as exc:
+            self._fail(operation, exc)
+            raise
+
+    async def generate_mockups(self, job: JobRecord, session: AsyncSession) -> None:
+        operation = await self._start(job, session)
+        try:
+            if self._mockup_service is None:
+                raise ConfigurationError("OpenRouter is not configured")
+            project = await session.get(ProjectRecord, str(job.payload["projectId"]))
+            if project is None:
+                raise RuntimeError("Mockup project is missing")
+            repository = PersistenceRepository(session)
+            form = BusinessDraft.model_validate(project.business)
+            if not form.industry:
+                form = form.model_copy(
+                    update={"industry": CATEGORY_LABELS.get(form.category_id, form.category_id)}
+                )
+            design = DesignDraft.model_validate(project.design).to_preferences()
+            uploaded = await self._uploaded_images(repository, project.id)
+            generated = await self._mockup_service.generate(form, design, uploaded)
+            generation = await repository.next_mockup_generation(project.id)
+            views: list[dict[str, object]] = []
+            for ordinal, mockup in enumerate(generated.mockups, start=1):
+                content = mockup.html.encode("utf-8")
+                filename = f"mockup-{generation}-{ordinal}.html"
+                storage_key = f"projects/{project.id}/mockups/{uuid.uuid4().hex}-{filename}"
+                await self._asset_store.put(storage_key, content, "text/html; charset=utf-8")
+                asset = await repository.add_asset(
+                    project_id=project.id,
+                    kind="mockup_html",
+                    storage_key=storage_key,
+                    filename=filename,
+                    label=mockup.label,
+                    content_type="text/html; charset=utf-8",
+                    size=len(content),
+                    sha256=hashlib.sha256(content).hexdigest(),
+                )
+                record = await repository.add_mockup(
+                    project_id=project.id,
+                    generation=generation,
+                    ordinal=ordinal,
+                    label=mockup.label,
+                    direction=mockup.direction,
+                    artifact_asset_id=asset.id,
+                )
+                views.append(mockup_view(record).model_dump(by_alias=True, mode="json"))
+            project.status = "mockups_ready"
+            operation.result = {"mockups": views, "brief": generated.brief}
+            self._complete(operation)
+        except Exception as exc:
+            self._fail(operation, exc)
+            raise
+
+    async def _uploaded_images(
+        self, repository: PersistenceRepository, project_id: str
+    ) -> list[ExtractedImage]:
+        images: list[ExtractedImage] = []
+        for asset in await repository.list_assets(project_id):
+            if asset.kind != "profile_image":
+                continue
+            content = await self._asset_store.get(asset.storage_key)
+            encoded = base64.b64encode(content).decode("ascii")
+            images.append(
+                ExtractedImage(
+                    filename=asset.filename,
+                    label=asset.label,
+                    data_url=f"data:{asset.content_type};base64,{encoded}",
+                )
+            )
+        return images
+
+    @staticmethod
+    async def _start(job: JobRecord, session: AsyncSession) -> OperationRecord:
+        if job.operation_id is None:
+            raise RuntimeError("Workflow job has no operation")
+        operation = await session.get(OperationRecord, job.operation_id)
+        if operation is None:
+            raise RuntimeError("Workflow operation is missing")
+        operation.status = "running"
+        operation.error_code = None
+        operation.error_message = None
+        return operation
+
+    @staticmethod
+    def _complete(operation: OperationRecord) -> None:
+        operation.status = "completed"
+        operation.completed_at = datetime.now(UTC)
+
+    @staticmethod
+    def _fail(operation: OperationRecord, exc: Exception) -> None:
+        operation.status = "failed"
+        operation.completed_at = datetime.now(UTC)
+        if isinstance(exc, ConfigurationError):
+            operation.error_code = "provider_configuration_missing"
+            operation.error_message = "The generation service is not configured."
+        elif isinstance(exc, ProviderError):
+            operation.error_code = "provider_unavailable"
+            operation.error_message = "The generation service could not complete this operation."
+        else:
+            operation.error_code = "operation_failed"
+            operation.error_message = "The operation could not be completed."
+
+
+def create_workflow_job_handlers(
+    settings: Settings, client: httpx.AsyncClient, asset_store: AssetBlobStore
+) -> WorkflowJobHandlers:
+    api_key = settings.openrouter_api_key.get_secret_value() if settings.openrouter_api_key else ""
+    if not api_key:
+        return WorkflowJobHandlers(asset_store, profile_service=None, mockup_service=None)
+    queue = RequestQueue(
+        max_concurrent=settings.openrouter_max_concurrent,
+        min_gap_seconds=settings.openrouter_min_request_gap_ms / 1000,
+    )
+    openrouter = OpenRouterAdapter(
+        client,
+        queue,
+        api_key=api_key,
+        base_url=settings.openrouter_base_url,
+        generation_model=settings.generation_model,
+        utility_model=settings.utility_model,
+        image_model=settings.image_model,
+        site_url=settings.site_url,
+        app_title=settings.openrouter_app_title,
+        max_attempts=settings.openrouter_retry_attempts,
+    )
+    pexels_key = settings.pexels_api_key.get_secret_value() if settings.pexels_api_key else None
+    pexels = PexelsAdapter(client, api_key=pexels_key, base_url=settings.pexels_base_url)
+    profile = ProfileExtractionService(openrouter, openrouter, openrouter)
+    mockups = MockupGenerationService(
+        BriefService(openrouter),
+        HtmlGenerationService(openrouter),
+        image_generator=openrouter,
+        image_search=pexels,
+    )
+    return WorkflowJobHandlers(asset_store, profile_service=profile, mockup_service=mockups)
+
+
+def decode_data_url(value: str) -> tuple[bytes, str]:
+    header, encoded = value.split(",", maxsplit=1)
+    if not header.startswith("data:") or ";base64" not in header:
+        raise ValueError("Invalid extracted image data URL")
+    content_type = header[5:].split(";", maxsplit=1)[0]
+    return base64.b64decode(encoded, validate=True), content_type
+
+
+def merge_empty(current: dict[str, object], extracted: dict[str, object]) -> dict[str, object]:
+    merged = dict(current)
+    for key, value in extracted.items():
+        existing = merged.get(key)
+        if value is not None and value != "" and (existing is None or existing == ""):
+            merged[key] = value
+    return merged
