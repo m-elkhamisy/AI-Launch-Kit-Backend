@@ -14,6 +14,8 @@ COPY migrations ./migrations
 
 RUN pip install --no-cache-dir .
 
+RUN mkdir -p /app/local_data && chown -R launchkit:launchkit /app/local_data
+
 EXPOSE 8000
 
 USER launchkit

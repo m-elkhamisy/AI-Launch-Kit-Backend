@@ -5,6 +5,8 @@ x-launchkit-service: &launchkit-service
     dockerfile: Dockerfile
   env_file:
     - .env
+  volumes:
+    - launchkit_data:/app/local_data
 
 services:
   postgres:
@@ -70,4 +72,5 @@ services:
     restart: unless-stopped
 
 volumes:
+  launchkit_data:
   launchkit_postgres:
