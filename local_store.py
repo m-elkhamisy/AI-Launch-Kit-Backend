@@ -1,3 +1,4 @@
+from typing import Optional
 """
 Local "fake S3" data layer — drop-in replacement for s3_store.py for development
 BEFORE the real bucket exists.
@@ -44,7 +45,7 @@ class NotFound(Exception):
 # ----------------------------------------------------------------------
 FIELD_MAP = {
     "name":          ["name", "company_name", "businessName", "business_name"],
-    "industry":      ["industry", "sector", "category"],
+    "industry":      ["industry", "sector", "category", "business_category"],
     "tagline":       ["tagline", "slogan"],
     "description":   ["description", "about", "what_you_do", "summary", "overview"],
     "services":      ["services", "offerings", "products", "service_list"],
@@ -57,6 +58,15 @@ FIELD_MAP = {
     # user design preferences from the frontend form
     "colorway":        ["colorway", "color_way", "colors", "brand_colors", "color_preference", "colour", "color"],
     "animation_level": ["animation_level", "animations", "motion_level", "animation"],
+    # screen 3 (business form / PDF extraction)
+    "unique_selling_point": ["unique_selling_point", "usp", "what_makes_you_unique", "unique", "differentiator"],
+    "cta_text":        ["cta_text", "cta", "main_cta", "main_call_to_action", "call_to_action"],
+    "extra_context":   ["extra_context", "anything_else", "additional_context", "notes"],
+    # screen 4 (design category & mood)
+    "design_mood":     ["design_mood", "mood"],
+    "theme_mode":      ["theme_mode", "theme"],
+    # screen 5 (fonts)
+    "font_pairing":    ["font_pairing", "fonts", "font_pair", "typography"],
 }
 
 
@@ -92,6 +102,30 @@ def _first(raw: dict, candidates: list, default=""):
     return default
 
 
+def _clean_pages(pages):
+    """Validate the user's page/section selection into [{name, sections[]}] or []."""
+    out = []
+    if isinstance(pages, list):
+        for p in pages:
+            if not isinstance(p, dict):
+                continue
+            name = str(p.get("name", "")).strip()
+            if not name:
+                continue
+            sections = [str(s).strip() for s in (p.get("sections") or []) if str(s).strip()]
+            out.append({"name": name, "sections": sections})
+    return out
+
+
+# frontend animation slider values -> pipeline levels
+_ANIMATION_MAP = {
+    "minimal": "minimal", "none": "minimal",
+    "low": "low", "light": "low",
+    "balanced": "moderate", "moderate": "moderate", "medium": "moderate", "recommended": "moderate",
+    "high": "lively", "lively": "lively", "dynamic": "lively",
+}
+
+
 def normalize_company(raw: dict) -> dict:
     """Turn a raw submission into the exact fields the prompt template expects."""
     flat = _flatten(raw)
@@ -112,7 +146,17 @@ def normalize_company(raw: dict) -> dict:
         "contact_email": str(_first(flat, FIELD_MAP["contact_email"], "")).strip(),
         "contact_phone": str(_first(flat, FIELD_MAP["contact_phone"], "")).strip(),
         "colorway":        str(_first(flat, FIELD_MAP["colorway"], "")).strip(),
-        "animation_level": str(_first(flat, FIELD_MAP["animation_level"], "")).strip(),
+        "animation_level": _ANIMATION_MAP.get(
+            str(_first(flat, FIELD_MAP["animation_level"], "")).strip().lower(),
+            str(_first(flat, FIELD_MAP["animation_level"], "")).strip().lower(),
+        ),
+        "unique_selling_point": str(_first(flat, FIELD_MAP["unique_selling_point"], "")).strip(),
+        "cta_text":        str(_first(flat, FIELD_MAP["cta_text"], "")).strip(),
+        "extra_context":   str(_first(flat, FIELD_MAP["extra_context"], "")).strip(),
+        "design_mood":     str(_first(flat, FIELD_MAP["design_mood"], "")).strip(),
+        "theme_mode":      str(_first(flat, FIELD_MAP["theme_mode"], "")).strip().lower(),
+        "font_pairing":    str(_first(flat, FIELD_MAP["font_pairing"], "")).strip(),
+        "pages":           _clean_pages(flat.get("pages")),
     }
 
 
@@ -128,7 +172,7 @@ def _read(path: Path) -> dict:
 
 # ---------- WRITE ----------
 
-def save_submission(raw: dict, company_id: str | None = None) -> dict:
+def save_submission(raw: dict, company_id: Optional[str] = None) -> dict:
     """Store both versions on disk and return {id, raw, normalized}."""
     company_id = company_id or uuid.uuid4().hex
     normalized = normalize_company(raw)
@@ -154,3 +198,56 @@ def get_raw_submission(company_id: str) -> dict:
 def list_companies() -> list:
     """Return the ids of all stored (normalized) submissions."""
     return sorted(p.stem for p in NORM_DIR.glob("*.json"))
+
+
+# ---------- PREVIEWS (screen 7) ----------
+
+PREV_DIR = BASE_DIR / "previews"
+BUILDS_DIR = BASE_DIR / "builds"
+DOCS_DIR = BASE_DIR / "documents"
+PREV_DIR.mkdir(parents=True, exist_ok=True)
+BUILDS_DIR.mkdir(parents=True, exist_ok=True)
+DOCS_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def save_previews(company_id: str, data: dict) -> None:
+    """Persist the 3 preview versions (briefs + chat ids) for a company."""
+    _write(PREV_DIR / f"{company_id}.json", {"id": company_id, **data})
+
+
+def get_previews(company_id: str) -> dict:
+    """Load the stored previews for a company. Raises NotFound if none exist."""
+    return _read(PREV_DIR / f"{company_id}.json")
+
+
+# ---------- BUILD META (readiness grace tracking) ----------
+
+def get_build_meta(chat_id: str) -> dict:
+    """Small per-build metadata record ({} if none yet)."""
+    try:
+        return _read(BUILDS_DIR / f"{chat_id}.json")
+    except NotFound:
+        return {}
+
+
+def set_build_meta(chat_id: str, meta: dict) -> None:
+    _write(BUILDS_DIR / f"{chat_id}.json", meta)
+
+
+# ---------- CLIENT DOCUMENTS (brochure / portfolio PDFs) ----------
+
+def save_document(company_id: str, kind: str, data: bytes) -> None:
+    d = DOCS_DIR / company_id
+    d.mkdir(parents=True, exist_ok=True)
+    (d / f"{kind}.pdf").write_bytes(data)
+
+
+def get_document(company_id: str, kind: str) -> bytes:
+    p = DOCS_DIR / company_id / f"{kind}.pdf"
+    if not p.exists():
+        raise NotFound(f"{kind} for {company_id}")
+    return p.read_bytes()
+
+
+def has_document(company_id: str, kind: str) -> bool:
+    return (DOCS_DIR / company_id / f"{kind}.pdf").exists()

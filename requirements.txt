@@ -1,5 +1,8 @@
 fastapi
 uvicorn[standard]
-boto3
 requests
 python-dotenv
+boto3
+pypdf
+python-multipart
+playwright

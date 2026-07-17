@@ -30,6 +30,9 @@ import os
 import io
 import base64
 import zipfile
+import secrets
+import hashlib
+import concurrent.futures as _cf
 from urllib.parse import urlencode
 
 import requests
@@ -55,14 +58,21 @@ class DeployError(Exception):
 # Files: pull the finished site from v0 and convert to Vercel's inline format
 # ----------------------------------------------------------------------
 
-_SKIP_NAMES = {".DS_Store"}
-_SKIP_PREFIXES = ("__MACOSX/",)
+# v0's zip can ship a stale template pnpm-lock.yaml that doesn't match the
+# package.json v0 actually generated (it adds e.g. framer-motion). Vercel CI
+# installs with frozen-lockfile and hard-fails on the mismatch — so we deploy
+# WITHOUT lockfiles and let Vercel install from package.json directly.
+_SKIP_NAMES = {".DS_Store", "pnpm-lock.yaml", "package-lock.json", "yarn.lock", "bun.lockb", "bun.lock"}
+_SKIP_PREFIXES = ("__MACOSX/", "node_modules/")
 
 
 def collect_site_files(chat_id: str) -> list:
-    """Download the generated site zip from v0 and convert it to Vercel inline files.
+    """Download the generated site zip from v0. Returns [{'file': path, 'content': bytes}].
 
-    Text files are sent as plain data; binary files (images, fonts) as base64.
+    Files are NOT inlined into the deployment request — sites now contain real
+    generated images, and inlining everything into one JSON body blows Vercel's
+    10 MB request limit. Instead each file is uploaded separately (see
+    upload_files) and the deployment references them by SHA1.
     """
     zip_bytes, _ = pipeline.download_zip(chat_id)   # raises PipelineError if not ready
 
@@ -74,24 +84,59 @@ def collect_site_files(chat_id: str) -> list:
             name = info.filename
             if name in _SKIP_NAMES or any(name.startswith(p) for p in _SKIP_PREFIXES):
                 continue
-            raw = zf.read(info)
-            try:
-                files.append({"file": name, "data": raw.decode("utf-8")})
-            except UnicodeDecodeError:
-                files.append({
-                    "file": name,
-                    "data": base64.b64encode(raw).decode("ascii"),
-                    "encoding": "base64",
-                })
+            files.append({"file": name, "content": zf.read(info)})
     if not files:
         raise DeployError("The v0 archive contained no files to deploy")
     return files
 
 
+def upload_files(access_token: str, team_id, files: list) -> list:
+    """Upload every file to Vercel's files API; return SHA-referenced descriptors.
+
+    This is Vercel's mechanism for large deployments: each file goes up in its own
+    request (so no 10 MB total cap), and the deployment then just lists
+    {file, sha, size}. Identical contents are uploaded once.
+    """
+    params = {"teamId": team_id} if team_id else {}
+
+    unique = {}   # sha -> content
+    descriptors = []
+    for f in files:
+        sha = hashlib.sha1(f["content"]).hexdigest()
+        unique[sha] = f["content"]
+        descriptors.append({"file": f["file"], "sha": sha, "size": len(f["content"])})
+
+    def _upload(sha: str) -> None:
+        content = unique[sha]
+        r = requests.post(
+            f"{VERCEL_API}/v2/files",
+            params=params,
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "Content-Type": "application/octet-stream",
+                "x-vercel-digest": sha,
+            },
+            data=content,
+            timeout=(10, 120),
+        )
+        if r.status_code not in (200, 201):
+            raise DeployError(f"File upload failed ({r.status_code}): {r.text[:200]}")
+
+    with _cf.ThreadPoolExecutor(max_workers=8) as ex:
+        list(ex.map(_upload, unique.keys()))   # propagate any DeployError
+
+    return descriptors
+
+
 def _project_name(chat_id: str) -> str:
-    """A valid Vercel project name: lowercase letters, digits, hyphens."""
+    """A valid, UNIQUE Vercel project name: lowercase letters, digits, hyphens.
+
+    A short random suffix makes every claim-deploy a distinct project — without it,
+    re-deploying the same chat reuses the name, and transferring into an account
+    that already claimed the earlier project collides.
+    """
     slug = "".join(c if c.isalnum() else "-" for c in chat_id.lower()).strip("-")
-    return f"ic-site-{slug}"[:90] or "ic-site"
+    return f"ic-site-{slug}"[:84] + "-" + secrets.token_hex(2)
 
 
 def create_deployment(access_token: str, team_id, chat_id: str, files: list) -> dict:
@@ -100,16 +145,17 @@ def create_deployment(access_token: str, team_id, chat_id: str, files: list) -> 
     if team_id:
         params["teamId"] = team_id
 
+    payload = {
+        "name": _project_name(chat_id),
+        "files": files,                      # [{file, sha, size}] — uploaded beforehand
+        "target": "production",
+        "projectSettings": {"framework": "nextjs"},
+    }
     r = requests.post(
         f"{VERCEL_API}/v13/deployments",
         params=params,
         headers={"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"},
-        json={
-            "name": _project_name(chat_id),
-            "files": files,
-            "target": "production",
-            "projectSettings": {"framework": "nextjs"},
-        },
+        json=payload,
         timeout=(10, 300),
     )
     if r.status_code not in (200, 201, 202):
@@ -165,7 +211,9 @@ def claimable_deploy(chat_id: str) -> dict:
     except pipeline.PipelineError as e:
         raise DeployError(str(e))
 
-    dep = create_deployment(VERCEL_TOKEN, VERCEL_TEAM_ID, chat_id, files)
+    # upload every file first (no 10 MB single-request cap), then reference by sha
+    refs = upload_files(VERCEL_TOKEN, VERCEL_TEAM_ID, files)
+    dep = create_deployment(VERCEL_TOKEN, VERCEL_TEAM_ID, chat_id, refs)
 
     project = dep.get("projectId") or _project_name(chat_id)
     code = create_transfer_code(project)

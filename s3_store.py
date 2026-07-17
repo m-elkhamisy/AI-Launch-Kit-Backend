@@ -1,3 +1,4 @@
+from typing import Optional
 """
 S3 data layer: write and read business submissions.
 
@@ -27,6 +28,8 @@ S3_PREFIX = os.getenv("S3_PREFIX", "submissions/")        # base folder inside t
 
 RAW_PREFIX = f"{S3_PREFIX}raw/"
 NORM_PREFIX = f"{S3_PREFIX}normalized/"
+BUILDS_PREFIX = f"{S3_PREFIX}builds/"
+DOCS_PREFIX = f"{S3_PREFIX}documents/"
 
 # boto3 reads credentials from the environment (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY)
 # or, on AWS, from the instance IAM role. Client creation is lazy.
@@ -43,7 +46,7 @@ class NotFound(Exception):
 # ----------------------------------------------------------------------
 FIELD_MAP = {
     "name":          ["name", "company_name", "businessName", "business_name"],
-    "industry":      ["industry", "sector", "category"],
+    "industry":      ["industry", "sector", "category", "business_category"],
     "tagline":       ["tagline", "slogan"],
     "description":   ["description", "about", "what_you_do", "summary", "overview"],
     "services":      ["services", "offerings", "products", "service_list"],
@@ -56,6 +59,15 @@ FIELD_MAP = {
     # user design preferences from the frontend form
     "colorway":        ["colorway", "color_way", "colors", "brand_colors", "color_preference", "colour", "color"],
     "animation_level": ["animation_level", "animations", "motion_level", "animation"],
+    # screen 3 (business form / PDF extraction)
+    "unique_selling_point": ["unique_selling_point", "usp", "what_makes_you_unique", "unique", "differentiator"],
+    "cta_text":        ["cta_text", "cta", "main_cta", "main_call_to_action", "call_to_action"],
+    "extra_context":   ["extra_context", "anything_else", "additional_context", "notes"],
+    # screen 4 (design category & mood)
+    "design_mood":     ["design_mood", "mood"],
+    "theme_mode":      ["theme_mode", "theme"],
+    # screen 5 (fonts)
+    "font_pairing":    ["font_pairing", "fonts", "font_pair", "typography"],
 }
 
 
@@ -85,6 +97,30 @@ def _first(raw: dict, candidates: list, default=""):
     return default
 
 
+def _clean_pages(pages):
+    """Validate the user's page/section selection into [{name, sections[]}] or []."""
+    out = []
+    if isinstance(pages, list):
+        for p in pages:
+            if not isinstance(p, dict):
+                continue
+            name = str(p.get("name", "")).strip()
+            if not name:
+                continue
+            sections = [str(s).strip() for s in (p.get("sections") or []) if str(s).strip()]
+            out.append({"name": name, "sections": sections})
+    return out
+
+
+# frontend animation slider values -> pipeline levels
+_ANIMATION_MAP = {
+    "minimal": "minimal", "none": "minimal",
+    "low": "low", "light": "low",
+    "balanced": "moderate", "moderate": "moderate", "medium": "moderate", "recommended": "moderate",
+    "high": "lively", "lively": "lively", "dynamic": "lively",
+}
+
+
 def normalize_company(raw: dict) -> dict:
     """Turn a raw submission into the exact fields the prompt template expects."""
     flat = _flatten(raw)
@@ -105,7 +141,17 @@ def normalize_company(raw: dict) -> dict:
         "contact_email": str(_first(flat, FIELD_MAP["contact_email"], "")).strip(),
         "contact_phone": str(_first(flat, FIELD_MAP["contact_phone"], "")).strip(),
         "colorway":        str(_first(flat, FIELD_MAP["colorway"], "")).strip(),
-        "animation_level": str(_first(flat, FIELD_MAP["animation_level"], "")).strip(),
+        "animation_level": _ANIMATION_MAP.get(
+            str(_first(flat, FIELD_MAP["animation_level"], "")).strip().lower(),
+            str(_first(flat, FIELD_MAP["animation_level"], "")).strip().lower(),
+        ),
+        "unique_selling_point": str(_first(flat, FIELD_MAP["unique_selling_point"], "")).strip(),
+        "cta_text":        str(_first(flat, FIELD_MAP["cta_text"], "")).strip(),
+        "extra_context":   str(_first(flat, FIELD_MAP["extra_context"], "")).strip(),
+        "design_mood":     str(_first(flat, FIELD_MAP["design_mood"], "")).strip(),
+        "theme_mode":      str(_first(flat, FIELD_MAP["theme_mode"], "")).strip().lower(),
+        "font_pairing":    str(_first(flat, FIELD_MAP["font_pairing"], "")).strip(),
+        "pages":           _clean_pages(flat.get("pages")),
     }
 
 
@@ -131,7 +177,7 @@ def _get_json(key: str) -> dict:
 
 # ---------- WRITE ----------
 
-def save_submission(raw: dict, company_id: str | None = None) -> dict:
+def save_submission(raw: dict, company_id: Optional[str] = None) -> dict:
     """
     Store both versions of a submission in S3 and return {id, raw, normalized}.
     A new uuid id is generated unless one is supplied.
@@ -171,3 +217,54 @@ def list_companies() -> list:
             if key.endswith(".json"):
                 ids.append(key[len(NORM_PREFIX):-len(".json")])
     return sorted(ids)
+
+
+# ---------- PREVIEWS (screen 7) ----------
+
+PREV_PREFIX = f"{S3_PREFIX}previews/"
+
+
+def save_previews(company_id: str, data: dict) -> None:
+    """Persist the 3 preview versions (briefs + chat ids) for a company."""
+    _put_json(f"{PREV_PREFIX}{company_id}.json", {"id": company_id, **data})
+
+
+def get_previews(company_id: str) -> dict:
+    """Load the stored previews for a company. Raises NotFound if none exist."""
+    return _get_json(f"{PREV_PREFIX}{company_id}.json")
+
+
+# ---------- BUILD META (readiness grace tracking) ----------
+
+def get_build_meta(chat_id: str) -> dict:
+    try:
+        return _get_json(f"{BUILDS_PREFIX}{chat_id}.json")
+    except NotFound:
+        return {}
+
+
+def set_build_meta(chat_id: str, meta: dict) -> None:
+    _put_json(f"{BUILDS_PREFIX}{chat_id}.json", meta)
+
+
+# ---------- CLIENT DOCUMENTS (brochure / portfolio PDFs) ----------
+
+def save_document(company_id: str, kind: str, data: bytes) -> None:
+    _s3().put_object(Bucket=S3_BUCKET, Key=f"{DOCS_PREFIX}{company_id}/{kind}.pdf",
+                     Body=data, ContentType="application/pdf")
+
+
+def get_document(company_id: str, kind: str) -> bytes:
+    try:
+        r = _s3().get_object(Bucket=S3_BUCKET, Key=f"{DOCS_PREFIX}{company_id}/{kind}.pdf")
+        return r["Body"].read()
+    except Exception:
+        raise NotFound(f"{kind} for {company_id}")
+
+
+def has_document(company_id: str, kind: str) -> bool:
+    try:
+        _s3().head_object(Bucket=S3_BUCKET, Key=f"{DOCS_PREFIX}{company_id}/{kind}.pdf")
+        return True
+    except Exception:
+        return False
