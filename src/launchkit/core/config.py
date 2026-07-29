@@ -49,6 +49,16 @@ class Settings(BaseSettings):
     vercel_base_url: str = "https://api.vercel.com"
     claim_return_url: str = "http://localhost:8000/"
 
+    # InnovationCity OAuth PKCE (app-auth-service-nodejs).
+    # Register client_id + redirect_uri + post_logout_redirect_uri with WeCan.
+    auth_base_url: str = "https://app-sandbox.innovationcity.com"
+    auth_client_id: str | None = None
+    auth_redirect_uri: str = "http://localhost:8000/auth/callback"
+    auth_post_logout_redirect_uri: str = "http://localhost:5173/?auth=logged_out"
+    auth_frontend_url: str = "http://localhost:5173"
+    auth_session_secret: str = "dev-only-change-me"
+    auth_cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+
 
 @lru_cache
 def get_settings() -> Settings:
