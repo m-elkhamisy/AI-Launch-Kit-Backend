@@ -11,6 +11,7 @@ from launchkit.profiles.models import (
 from launchkit.profiles.parsing import (
     UnsupportedProfileTypeError,
     extract_docx_images,
+    extract_pptx_images,
     extract_profile_text,
 )
 
@@ -24,4 +25,5 @@ __all__ = [
     "UnsupportedProfileTypeError",
     "extract_docx_images",
     "extract_profile_text",
+    "extract_pptx_images",
 ]

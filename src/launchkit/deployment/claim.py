@@ -15,7 +15,7 @@ class ClaimDeploymentService:
         archive_source: V0ArchiveSource,
         vercel: VercelGateway,
         *,
-        return_url: str = "http://localhost:8000/",
+        return_url: str = "http://localhost:5173/",
     ) -> None:
         self._archive_source = archive_source
         self._vercel = vercel

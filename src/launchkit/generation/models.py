@@ -2,6 +2,8 @@
 
 from enum import StrEnum
 
+from pydantic import Field
+
 from launchkit.core.models import AliasedModel
 from launchkit.design.models import DesignPreferences
 from launchkit.intake.models import OnboardingForm
@@ -69,6 +71,15 @@ class V0GenerationResult(AliasedModel):
     demo_url: str | None
     status: PipelineStatus
     file_count: int
+    version_id: str | None = None
+    files: list[str] = Field(default_factory=list)
+
+
+class V0Hook(AliasedModel):
+    id: str
+    name: str
+    url: str
+    events: list[str]
 
 
 class V0HandoffResult(AliasedModel):

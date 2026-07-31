@@ -5,7 +5,9 @@ import zipfile
 from io import BytesIO
 
 import docx
+import pptx
 import pytest
+from PIL import Image
 from pypdf import PdfWriter
 from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
 
@@ -51,6 +53,15 @@ class ImageLabelerStub:
         return self.label
 
 
+class VisualExtractorStub:
+    async def extract_profile_image_fields(self, data_url: str) -> ProfileFieldExtraction:
+        assert data_url.startswith("data:image/png;base64,")
+        return ProfileFieldExtraction(
+            fields=OnboardingFormPatch(company_name="Visual Co"),
+            design_hints=ProfileDesignHints(cta="Visit us"),
+        )
+
+
 def make_docx(text: str, images: list[tuple[str, bytes]] | None = None) -> bytes:
     buffer = BytesIO()
     document = docx.Document()
@@ -85,6 +96,22 @@ def make_text_pdf(text: str) -> bytes:
     return buffer.getvalue()
 
 
+def make_pptx(text: str) -> bytes:
+    buffer = BytesIO()
+    presentation = pptx.Presentation()
+    slide = presentation.slides.add_slide(presentation.slide_layouts[5])
+    box = slide.shapes.add_textbox(0, 0, 100, 100)
+    box.text = text
+    presentation.save(buffer)
+    return buffer.getvalue()
+
+
+def make_png() -> bytes:
+    buffer = BytesIO()
+    Image.new("RGB", (2, 2), "white").save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
 @pytest.mark.parametrize(
     ("filename", "expected"),
     [("PROFILE.PDF", "pdf"), ("profile", ""), ("archive.profile.docx", "docx")],
@@ -98,6 +125,7 @@ def test_extract_profile_text_supports_plain_docx_and_pdf() -> None:
     assert extract_profile_text(b"# Brief", "profile.md") == "# Brief"
     assert extract_profile_text(make_docx("Company profile"), "profile.docx") == "Company profile"
     assert extract_profile_text(make_text_pdf("PDF profile"), "profile.pdf") == "PDF profile"
+    assert extract_profile_text(make_pptx("Slide profile"), "profile.pptx") == "Slide profile"
 
 
 def test_extract_profile_text_rejects_unknown_or_missing_extension() -> None:
@@ -161,3 +189,16 @@ def test_profile_service_uses_photo_when_labeling_fails_or_is_empty(fail: bool, 
     result = asyncio.run(service.extract(content, "profile.docx"))
 
     assert result.images[0].label == "photo"
+
+
+def test_profile_service_extracts_visual_profile_without_text_warning() -> None:
+    service = ProfileExtractionService(
+        FieldExtractorStub(), ImageLabelerStub(label="brand board."), VisualExtractorStub()
+    )
+
+    result = asyncio.run(service.extract(make_png(), "brand.png"))
+
+    assert result.fields.company_name == "Visual Co"
+    assert result.design_hints.cta == "Visit us"
+    assert result.images[0].label == "brand board"
+    assert result.warnings == []
