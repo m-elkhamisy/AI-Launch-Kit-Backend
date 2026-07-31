@@ -4,6 +4,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from launchkit.builds.service import GenerationQuotaExceededError
 from launchkit.core.exceptions import DomainError
 from launchkit.persistence.models import BuildRecord, ProjectRecord
 from launchkit.persistence.repositories import PersistenceRepository
@@ -21,6 +22,13 @@ class ProjectService:
         self._owner_id = owner_id
 
     async def create(self, draft: ProjectDraft) -> ProjectView:
+        # One website per user: resume an existing draft, or block after a generation.
+        if await self._repository.count_owner_website_builds(self._owner_id) >= 1:
+            raise GenerationQuotaExceededError()
+        existing = list(await self._repository.list_projects(self._owner_id))
+        if existing:
+            return await self._view(existing[0])
+
         record = await self._repository.add_project(
             owner_id=self._owner_id,
             business=draft.business.model_dump(by_alias=True),

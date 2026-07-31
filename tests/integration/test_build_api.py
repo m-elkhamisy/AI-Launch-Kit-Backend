@@ -95,6 +95,7 @@ def build_client(
     tmp_path.mkdir(parents=True, exist_ok=True)
     settings = Settings(
         environment="test",
+        auth_mode="testing",
         database_url=f"sqlite+aiosqlite:///{(tmp_path / 'build.sqlite3').as_posix()}",
         local_data_dir=tmp_path / "data",
         openrouter_api_key="openrouter" if configured else None,

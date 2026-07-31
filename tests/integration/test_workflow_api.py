@@ -75,6 +75,7 @@ def workflow_client(
 ) -> Iterator[tuple[TestClient, Settings, LocalAssetBlobStore]]:
     settings = Settings(
         environment="test",
+        auth_mode="testing",
         database_url=f"sqlite+aiosqlite:///{(tmp_path / 'workflow.sqlite3').as_posix()}",
         local_data_dir=tmp_path / "data",
         openrouter_api_key="test" if configured else None,

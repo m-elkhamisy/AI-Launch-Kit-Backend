@@ -61,7 +61,7 @@ def test_provision_replaces_obsolete_named_hook() -> None:
 
 def test_callback_url_requires_token_and_https_outside_local() -> None:
     with pytest.raises(ConfigurationError, match="TOKEN"):
-        callback_url(Settings(environment="production"))
+        callback_url(Settings(environment="production", v0_webhook_token=None, v0_webhook_callback_url=None))
     with pytest.raises(ConfigurationError, match="HTTPS"):
         callback_url(
             Settings(

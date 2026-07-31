@@ -20,6 +20,7 @@ from launchkit.persistence.base import Base
 def api_client(tmp_path: Path) -> Iterator[TestClient]:
     settings = Settings(
         environment="test",
+        auth_mode="testing",
         database_url=f"sqlite+aiosqlite:///{(tmp_path / 'api.sqlite3').as_posix()}",
         frontend_origins="http://localhost:5173,https://studio.example",
     )
@@ -61,6 +62,17 @@ def test_health_catalog_and_cors_contract(tmp_path: Path) -> None:
     assert body["pageTemplates"][0]["sectionTemplateIds"][0] == "navigation"
     assert preflight.status_code == 200
     assert preflight.headers["access-control-allow-origin"] == "http://localhost:5173"
+
+
+def test_project_create_is_idempotent_per_owner(tmp_path: Path) -> None:
+    with api_client(tmp_path) as client:
+        first = create_project(client)
+        second = client.post("/api/v1/projects", json={})
+        listed = client.get("/api/v1/projects")
+
+    assert second.status_code == 201
+    assert second.json()["id"] == first["id"]
+    assert len(listed.json()) == 1
 
 
 def test_project_create_get_and_partial_patch(tmp_path: Path) -> None:
@@ -182,26 +194,25 @@ def test_unknown_catalog_id_and_extra_fields_are_rejected(tmp_path: Path) -> Non
 
 def test_list_projects_returns_owner_summaries_newest_first(tmp_path: Path) -> None:
     with api_client(tmp_path) as client:
-        first = create_project(client)
-        second = create_project(client)
+        project = create_project(client)
         client.patch(
-            f"/api/v1/projects/{second['id']}",
+            f"/api/v1/projects/{project['id']}",
             json={"business": {"companyName": "Northstar"}},
         )
         listed = client.get("/api/v1/projects")
 
     assert listed.status_code == 200
     body = listed.json()
-    assert len(body) == 2
-    assert body[0]["id"] == second["id"]
+    assert len(body) == 1
+    assert body[0]["id"] == project["id"]
     assert body[0]["companyName"] == "Northstar"
     assert body[0]["status"] == "draft"
     assert body[0]["latestBuildId"] is None
     assert body[0]["latestBuildStatus"] is None
     assert body[0]["previewUrl"] is None
     assert body[0]["downloadUrl"] is None
-    assert body[1]["id"] == first["id"]
-    assert body[1]["companyName"] == ""
+    assert "createdAt" in body[0]
+    assert "updatedAt" in body[0]
 
 
 def test_list_projects_includes_latest_build_summary(tmp_path: Path) -> None:

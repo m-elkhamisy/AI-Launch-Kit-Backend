@@ -56,6 +56,7 @@ def deployment_client(
     tmp_path.mkdir(parents=True, exist_ok=True)
     settings = Settings(
         environment="test",
+        auth_mode="testing",
         database_url=f"sqlite+aiosqlite:///{(tmp_path / 'deployment.sqlite3').as_posix()}",
         local_data_dir=tmp_path / "data",
         vercel_token="vercel" if configured else None,
@@ -85,9 +86,21 @@ def archive_bytes() -> bytes:
 def create_completed_build(
     client: TestClient, settings: Settings, store: LocalAssetBlobStore
 ) -> tuple[str, str]:
-    response = client.post("/api/v1/projects", json={"business": {"companyName": "Northstar"}})
-    assert response.status_code == 201
-    project_id = cast(str, response.json()["id"])
+    # One website per owner: reuse an existing draft when the test already created one.
+    listed = client.get("/api/v1/projects")
+    assert listed.status_code == 200
+    projects = listed.json()
+    if projects:
+        project_id = cast(str, projects[0]["id"])
+        patched = client.patch(
+            f"/api/v1/projects/{project_id}",
+            json={"business": {"companyName": "Northstar"}},
+        )
+        assert patched.status_code == 200
+    else:
+        response = client.post("/api/v1/projects", json={"business": {"companyName": "Northstar"}})
+        assert response.status_code == 201
+        project_id = cast(str, response.json()["id"])
 
     async def scenario() -> str:
         content = archive_bytes()
