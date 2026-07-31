@@ -17,7 +17,7 @@ from launchkit.auth.cookies import (
     set_cookie,
 )
 from launchkit.auth.models import AuthMeResponse, AuthMessageResponse, AuthUser
-from launchkit.auth.pkce import code_challenge_s256, generate_code_verifier, generate_state
+from launchkit.auth.pkce import code_challenge_s256, generate_code_verifier
 from launchkit.core.config import Settings, get_settings
 from launchkit.core.exceptions import ConfigurationError, ProviderError
 
@@ -39,6 +39,28 @@ def get_auth_client(settings: Annotated[Settings, Depends(get_settings)]) -> Aut
 def _frontend_redirect(settings: Settings, *, params: dict[str, str]) -> RedirectResponse:
     base = settings.auth_frontend_url.rstrip("/")
     return RedirectResponse(url=f"{base}/?{urlencode(params)}", status_code=status.HTTP_302_FOUND)
+
+
+def _pending_code_verifier(request: Request, settings: Settings, state: str | None) -> str | None:
+    """Resolve PKCE verifier from signed OAuth state (preferred) or pending cookie."""
+
+    if state:
+        from_state = load_signed(state, settings.auth_session_secret)
+        if from_state:
+            verifier = from_state.get("code_verifier")
+            if isinstance(verifier, str) and verifier:
+                return verifier
+
+    pending_raw = read_cookie(request, OAUTH_PENDING_COOKIE)
+    pending = load_signed(pending_raw, settings.auth_session_secret) if pending_raw else None
+    if not pending:
+        return None
+    # Legacy cookie format: {state, code_verifier} with random OAuth state.
+    expected_state = pending.get("state")
+    if isinstance(expected_state, str) and state and state != expected_state:
+        return None
+    verifier = pending.get("code_verifier")
+    return verifier if isinstance(verifier, str) and verifier else None
 
 
 def _set_token_cookies(
@@ -82,20 +104,18 @@ async def login(
     try:
         verifier = generate_code_verifier()
         challenge = code_challenge_s256(verifier)
-        state = generate_state()
+        # Put verifier in signed `state` so callback works even if the pending
+        # cookie is dropped (login host ≠ redirect_uri host).
+        state = dump_signed({"code_verifier": verifier}, settings.auth_session_secret)
         authorize_url = client.build_authorize_url(code_challenge=challenge, state=state)
     except ConfigurationError as exc:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
 
-    pending = dump_signed(
-        {"state": state, "code_verifier": verifier},
-        settings.auth_session_secret,
-    )
     redirect = RedirectResponse(url=authorize_url, status_code=status.HTTP_302_FOUND)
     set_cookie(
         redirect,
         name=OAUTH_PENDING_COOKIE,
-        value=pending,
+        value=state,
         max_age=OAUTH_PENDING_MAX_AGE,
         environment=settings.environment,
     )
@@ -116,23 +136,18 @@ async def callback(
     if error:
         return _frontend_redirect(settings, params={"auth": "error", "reason": error})
 
-    pending_raw = read_cookie(request, OAUTH_PENDING_COOKIE)
-    pending = load_signed(pending_raw, settings.auth_session_secret) if pending_raw else None
-    if not pending or not code or not state:
+    if not code or not state:
         return _frontend_redirect(
             settings,
             params={"auth": "error", "reason": "missing_oauth_state"},
         )
 
-    expected_state = pending.get("state")
-    code_verifier = pending.get("code_verifier")
-    if not isinstance(expected_state, str) or not isinstance(code_verifier, str):
+    code_verifier = _pending_code_verifier(request, settings, state)
+    if not code_verifier:
         return _frontend_redirect(
             settings,
-            params={"auth": "error", "reason": "invalid_oauth_state"},
+            params={"auth": "error", "reason": "missing_oauth_state"},
         )
-    if state != expected_state:
-        return _frontend_redirect(settings, params={"auth": "error", "reason": "state_mismatch"})
 
     try:
         tokens = await client.exchange_code(code=code, code_verifier=code_verifier)

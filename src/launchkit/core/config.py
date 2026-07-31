@@ -59,7 +59,6 @@ class Settings(BaseSettings):
     auth_session_secret: str = "dev-only-change-me"
     auth_cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
 
-
 @lru_cache
 def get_settings() -> Settings:
     """Return one settings instance per process."""

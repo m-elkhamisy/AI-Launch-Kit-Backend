@@ -49,11 +49,7 @@ def test_callback_exchanges_code_and_sets_cookies(monkeypatch: object) -> None:
     settings = _settings()
     app = create_app(settings)
     verifier = generate_code_verifier()
-    state = "state-abc"
-    pending = dump_signed(
-        {"state": state, "code_verifier": verifier},
-        settings.auth_session_secret,
-    )
+    state = dump_signed({"code_verifier": verifier}, settings.auth_session_secret)
 
     async def fake_exchange(
         self: object,
@@ -76,7 +72,7 @@ def test_callback_exchanges_code_and_sets_cookies(monkeypatch: object) -> None:
     )
 
     client = TestClient(app)
-    client.cookies.set("lk_oauth_pending", pending)
+    # No pending cookie — verifier must come from signed OAuth state.
     response = client.get(
         f"/auth/callback?code=auth-code&state={state}",
         follow_redirects=False,
@@ -89,20 +85,23 @@ def test_callback_exchanges_code_and_sets_cookies(monkeypatch: object) -> None:
     assert response.cookies.get("lk_refresh_token") == "refresh-1"
 
 
-def test_callback_rejects_state_mismatch() -> None:
-    settings = _settings()
-    pending = dump_signed(
-        {"state": "expected", "code_verifier": "verifier"},
-        settings.auth_session_secret,
-    )
-    client = TestClient(create_app(settings))
-    client.cookies.set("lk_oauth_pending", pending)
+def test_callback_rejects_invalid_state() -> None:
+    client = TestClient(create_app(_settings()))
     response = client.get(
-        "/auth/callback?code=auth-code&state=wrong",
+        "/auth/callback?code=auth-code&state=not-a-signed-payload",
         follow_redirects=False,
     )
     assert response.status_code == 302
-    assert "reason=state_mismatch" in response.headers["location"]
+    assert "reason=missing_oauth_state" in response.headers["location"]
+
+
+def test_staging_cookies_are_samesite_none() -> None:
+    client = TestClient(create_app(_settings(environment="staging")))
+    response = client.get("/auth/login", follow_redirects=False)
+    assert response.status_code == 302
+    header = response.headers.get("set-cookie", "")
+    assert "SameSite=none" in header or "SameSite=None" in header
+    assert "Secure" in header
 
 
 def test_me_unauthenticated() -> None:

@@ -44,6 +44,12 @@ def cookie_secure(environment: str) -> bool:
     return environment in {"staging", "production"}
 
 
+def cookie_samesite(environment: str) -> str:
+    # Cross-site SPA (frontend host ≠ API host) needs None so /auth/me gets cookies.
+    # "none" requires Secure, which staging/production already set.
+    return "none" if cookie_secure(environment) else "lax"
+
+
 def set_cookie(
     response: Response,
     *,
@@ -59,7 +65,7 @@ def set_cookie(
         max_age=max_age,
         httponly=http_only,
         secure=cookie_secure(environment),
-        samesite="lax",
+        samesite=cookie_samesite(environment),
         path="/",
     )
 
@@ -70,7 +76,7 @@ def clear_cookie(response: Response, *, name: str, environment: str) -> None:
         path="/",
         httponly=True,
         secure=cookie_secure(environment),
-        samesite="lax",
+        samesite=cookie_samesite(environment),
     )
 
 
