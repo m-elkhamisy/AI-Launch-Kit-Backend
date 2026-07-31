@@ -2,6 +2,7 @@ from urllib.parse import parse_qs, urlparse
 
 from fastapi.testclient import TestClient
 
+from launchkit.api.auth import authenticate_token, mint_token
 from launchkit.auth.cookies import dump_signed
 from launchkit.auth.pkce import code_challenge_s256, generate_code_verifier
 from launchkit.core.config import Settings
@@ -66,10 +67,15 @@ def test_callback_exchanges_code_and_sets_cookies(monkeypatch: object) -> None:
             "token_type": "Bearer",
         }
 
+    async def fake_me(self: object, *, access_token: str) -> dict[str, object]:
+        assert access_token == "access-1"
+        return {"cognitoUserId": "sub-1", "email": "user@example.com", "role": "customer"}
+
     monkeypatch.setattr(
         "launchkit.auth.client.AuthServiceClient.exchange_code",
         fake_exchange,
     )
+    monkeypatch.setattr("launchkit.auth.client.AuthServiceClient.me", fake_me)
 
     client = TestClient(app)
     # No pending cookie — verifier must come from signed OAuth state.
@@ -83,6 +89,25 @@ def test_callback_exchanges_code_and_sets_cookies(monkeypatch: object) -> None:
     assert "auth=success" in response.headers["location"]
     assert response.cookies.get("lk_access_token") == "access-1"
     assert response.cookies.get("lk_refresh_token") == "refresh-1"
+    # The API JWT bridge lets /api/v1 identify this IC user as owner.
+    api_token = response.cookies.get("lk_api_token")
+    assert api_token
+    assert authenticate_token(settings, api_token) == "sub-1"
+
+
+def test_auth_token_endpoint_returns_api_jwt_for_logged_in_user() -> None:
+    settings = _settings()
+    client = TestClient(create_app(settings))
+
+    unauthenticated = client.get("/auth/token")
+    assert unauthenticated.status_code == 401
+
+    client.cookies.set("lk_api_token", mint_token(settings, "sub-1").access_token)
+    response = client.get("/auth/token")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["tokenType"] == "bearer"
+    assert authenticate_token(settings, body["accessToken"]) == "sub-1"
 
 
 def test_callback_rejects_invalid_state() -> None:

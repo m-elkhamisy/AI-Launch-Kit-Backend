@@ -18,7 +18,8 @@ def test_fastapi_is_limited_to_transport_modules() -> None:
     violations: list[str] = []
     for path in PACKAGE_ROOT.rglob("*.py"):
         relative = path.relative_to(PACKAGE_ROOT)
-        if relative == Path("main.py") or relative.parts[0] == "api":
+        # main.py, api/, and auth/ are transport modules; FastAPI stays out of business logic.
+        if relative == Path("main.py") or relative.parts[0] in {"api", "auth"}:
             continue
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         imports = {

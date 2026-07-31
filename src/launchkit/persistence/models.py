@@ -20,6 +20,22 @@ class Timestamped:
     )
 
 
+class UserRecord(Timestamped, Base):
+    """A Launch Kit user identified by the IC login subject (owner_id)."""
+
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    email: Mapped[str | None] = mapped_column(String(254), nullable=True, index=True)
+    full_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    company_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    role: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    pool: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    profile: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    last_login_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
 class ProjectRecord(Timestamped, Base):
     __tablename__ = "projects"
 

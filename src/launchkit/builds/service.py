@@ -16,6 +16,16 @@ class BuildNotFoundError(DomainError):
     """Raised when a build is absent or owned by another testing user."""
 
 
+class GenerationQuotaExceededError(DomainError):
+    """Raised when the owner has already used their single website generation."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            "You have already generated your website. "
+            "You need more credits to generate another one."
+        )
+
+
 class BuildService:
     def __init__(
         self,
@@ -73,6 +83,9 @@ class BuildService:
 
         if await self._repository.find_active_build(project_id) is not None:
             raise DomainError("A build is already active for this project.")
+        # Every user gets exactly one website generation (failed builds don't count).
+        if await self._repository.count_owner_website_builds(self._owner_id) >= 1:
+            raise GenerationQuotaExceededError()
         build = await self._repository.add_build(project_id=project.id, provider=request.provider)
         await self._repository.add_status_event(
             resource_type="build",

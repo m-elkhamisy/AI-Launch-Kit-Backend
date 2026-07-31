@@ -17,6 +17,7 @@ LOCAL_TOKEN_SECRET = "launchkit-local-development-token-secret"
 TOKEN_ALGORITHM = "HS256"
 TOKEN_AUDIENCE = "ai-launch-kit-api"
 TOKEN_ISSUER = "ai-launch-kit"
+API_TOKEN_COOKIE = "lk_api_token"
 
 
 class AccessCodeRequest(AliasedModel):
@@ -47,11 +48,16 @@ def verify_access_code(settings: Settings, email: str, code: str) -> AuthTokenRe
     expected_code = _secret_value(settings, settings.auth_otp, LOCAL_OTP, "staging OTP")
     if not compare_digest(code, expected_code):
         raise AuthenticationError("The email or access code is invalid.")
+    return mint_token(settings, normalized_email)
+
+
+def mint_token(settings: Settings, subject: str) -> AuthTokenResponse:
+    """Issue a Launch Kit API JWT for an already-authenticated subject."""
 
     now = datetime.now(UTC)
     expires_at = now + timedelta(seconds=settings.auth_token_ttl_seconds)
     payload = {
-        "sub": normalized_email,
+        "sub": subject,
         "aud": TOKEN_AUDIENCE,
         "iss": TOKEN_ISSUER,
         "iat": now,

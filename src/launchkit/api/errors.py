@@ -11,7 +11,7 @@ from pydantic import ValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from launchkit.assets import UploadTooLargeError, UploadValidationError
-from launchkit.builds import BuildNotFoundError
+from launchkit.builds import BuildNotFoundError, GenerationQuotaExceededError
 from launchkit.builds.webhooks import WebhookAccessError, WebhookPayloadError
 from launchkit.core.exceptions import (
     AuthenticationError,
@@ -106,6 +106,17 @@ def register_error_handlers(app: FastAPI) -> None:
     async def handle_workflow_not_found(request: Request, _: WorkflowNotFoundError) -> JSONResponse:
         return error_response(
             request, status_code=404, code="resource_not_found", message="Resource not found."
+        )
+
+    @app.exception_handler(GenerationQuotaExceededError)
+    async def handle_generation_quota(
+        request: Request, exc: GenerationQuotaExceededError
+    ) -> JSONResponse:
+        return error_response(
+            request,
+            status_code=402,
+            code="generation_quota_exceeded",
+            message=str(exc),
         )
 
     @app.exception_handler(BuildNotFoundError)

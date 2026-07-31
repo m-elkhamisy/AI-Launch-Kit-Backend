@@ -7,7 +7,7 @@ from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from launchkit.api.auth import authenticate_token
+from launchkit.api.auth import API_TOKEN_COOKIE, authenticate_token
 from launchkit.assets import AssetBlobStore
 from launchkit.builds import BuildService
 from launchkit.builds.webhooks import V0WebhookService
@@ -26,6 +26,7 @@ def get_request_settings(request: Request) -> Settings:
 
 
 def get_current_user_id(
+    request: Request,
     settings: Annotated[Settings, Depends(get_request_settings)],
     credentials: Annotated[
         HTTPAuthorizationCredentials | None,
@@ -34,11 +35,15 @@ def get_current_user_id(
 ) -> str:
     if settings.auth_mode == "testing":
         return settings.testing_user_id
-    if credentials is None or credentials.scheme.lower() != "bearer":
-        from launchkit.core.exceptions import AuthenticationError
+    if credentials is not None and credentials.scheme.lower() == "bearer":
+        return authenticate_token(settings, credentials.credentials)
+    # IC OAuth logins receive the API JWT in an httpOnly cookie.
+    cookie_token = request.cookies.get(API_TOKEN_COOKIE)
+    if cookie_token:
+        return authenticate_token(settings, cookie_token)
+    from launchkit.core.exceptions import AuthenticationError
 
-        raise AuthenticationError("Authentication is required.")
-    return authenticate_token(settings, credentials.credentials)
+    raise AuthenticationError("Authentication is required.")
 
 
 async def get_session(request: Request) -> AsyncIterator[AsyncSession]:

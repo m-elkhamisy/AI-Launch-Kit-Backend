@@ -19,7 +19,9 @@ from launchkit.persistence.models import (
     ProjectRecord,
     ProviderReferenceRecord,
     StatusEventRecord,
+    UserRecord,
     WebhookDeliveryRecord,
+    utc_now,
 )
 
 
@@ -30,6 +32,49 @@ def new_id(prefix: str) -> str:
 class PersistenceRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
+
+    async def upsert_user(
+        self,
+        *,
+        user_id: str,
+        email: str | None = None,
+        full_name: str | None = None,
+        phone: str | None = None,
+        company_name: str | None = None,
+        role: str | None = None,
+        pool: str | None = None,
+        profile: dict[str, Any] | None = None,
+    ) -> UserRecord:
+        """Create or refresh the login record for an authenticated user."""
+
+        record = await self._session.get(UserRecord, user_id)
+        if record is None:
+            record = UserRecord(id=user_id)
+            self._session.add(record)
+        record.email = email or record.email
+        record.full_name = full_name or record.full_name
+        record.phone = phone or record.phone
+        record.company_name = company_name or record.company_name
+        record.role = role or record.role
+        record.pool = pool or record.pool
+        if profile is not None:
+            record.profile = profile
+        record.last_login_at = utc_now()
+        await self._session.flush()
+        return record
+
+    async def get_user(self, user_id: str) -> UserRecord | None:
+        return await self._session.get(UserRecord, user_id)
+
+    async def count_owner_website_builds(self, owner_id: str) -> int:
+        """Count non-failed builds across all of the owner's projects."""
+
+        result = await self._session.scalar(
+            select(func.count(BuildRecord.id))
+            .join(ProjectRecord, BuildRecord.project_id == ProjectRecord.id)
+            .where(ProjectRecord.owner_id == owner_id, BuildRecord.status != "failed")
+        )
+        return int(result or 0)
 
     async def add_project(
         self,

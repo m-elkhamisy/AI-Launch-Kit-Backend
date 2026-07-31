@@ -9,7 +9,11 @@ import pytest
 
 from launchkit.assets import AssetBlobStore
 from launchkit.builds.models import BuildCreate, BuildView
-from launchkit.builds.service import BuildNotFoundError, BuildService
+from launchkit.builds.service import (
+    BuildNotFoundError,
+    BuildService,
+    GenerationQuotaExceededError,
+)
 from launchkit.core.config import Settings
 from launchkit.core.exceptions import ConfigurationError, DomainError
 from launchkit.persistence.models import AssetRecord, BuildRecord, ProjectRecord
@@ -33,6 +37,7 @@ class RepositoryStub:
         self.build: BuildRecord | None = None
         self.mockup_exists = True
         self.active = False
+        self.owner_build_count = 0
         self.idempotency: Any | None = None
         self.asset: AssetRecord | None = None
         self.events: list[dict[str, Any]] = []
@@ -54,6 +59,10 @@ class RepositoryStub:
     async def find_active_build(self, project_id: str) -> BuildRecord | None:
         del project_id
         return self.build if self.active else None
+
+    async def count_owner_website_builds(self, owner_id: str) -> int:
+        del owner_id
+        return self.owner_build_count
 
     async def add_build(self, *, project_id: str, provider: str) -> BuildRecord:
         now = datetime.now(UTC)
@@ -163,6 +172,20 @@ def test_start_is_idempotent_and_prevents_conflicts() -> None:
     repository.active = True
     with pytest.raises(DomainError, match="already active"):
         start(repository, "new-key")
+
+
+def test_start_enforces_one_website_per_user() -> None:
+    repository = RepositoryStub()
+    repository.owner_build_count = 1
+    with pytest.raises(GenerationQuotaExceededError, match="need more credits"):
+        start(repository)
+
+    # Idempotent replays of the already-created build still succeed.
+    repository = RepositoryStub()
+    created = start(repository)
+    repository.owner_build_count = 1
+    repeated = start(repository)
+    assert created.id == repeated.id
 
 
 def test_start_rejects_a_dangling_idempotency_resource() -> None:
