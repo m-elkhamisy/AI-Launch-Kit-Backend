@@ -18,6 +18,7 @@ from launchkit.builds.handlers import create_build_job_handlers
 from launchkit.core.config import Settings, get_settings
 from launchkit.core.logging import configure_logging
 from launchkit.deployment.handlers import create_deployment_job_handlers
+from launchkit.core.tls import use_system_certificates
 from launchkit.persistence import Database, create_database
 from launchkit.worker import Worker
 from launchkit.workflows.handlers import create_workflow_job_handlers
@@ -65,6 +66,7 @@ def create_app(
 
     resolved_settings = settings or get_settings()
     configure_logging(resolved_settings)
+    use_system_certificates()
 
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
