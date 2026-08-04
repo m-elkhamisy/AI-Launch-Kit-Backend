@@ -176,7 +176,9 @@ def test_profile_service_skips_field_call_for_empty_pdf_and_warns() -> None:
 
     assert fields.text == ""
     assert result.fields.model_dump(exclude_none=True) == {}
-    assert result.warnings == [EMPTY_TEXT_WARNING, PDF_IMAGE_WARNING]
+    assert f"empty.pdf: {PDF_IMAGE_WARNING}" in result.warnings
+    assert f"empty.pdf: {EMPTY_TEXT_WARNING}" in result.warnings
+    assert EMPTY_TEXT_WARNING in result.warnings
 
 
 @pytest.mark.parametrize(("fail", "label"), [(True, "ignored"), (False, "")])

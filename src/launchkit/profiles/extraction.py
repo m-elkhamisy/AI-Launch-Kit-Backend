@@ -23,7 +23,7 @@ from launchkit.profiles.parsing import (
     profile_extension,
 )
 
-PROFILE_TEXT_LIMIT = 12_000
+PROFILE_TEXT_LIMIT = 28_000
 EMPTY_TEXT_WARNING = "Couldn't find any readable text in this file - the form wasn't prefilled."
 PDF_IMAGE_WARNING = (
     "Photo extraction from PDFs isn't supported yet - text was extracted, but embedded photos "
@@ -46,55 +46,91 @@ class ProfileExtractionService:
         self._visual_field_extractor = visual_field_extractor
 
     async def extract(self, content: bytes, filename: str) -> ProfileExtractionResult:
-        extension = profile_extension(filename)
-        is_image = extension in {"png", "jpg", "jpeg"}
-        text = "" if is_image else await asyncio.to_thread(extract_profile_text, content, filename)
-        warnings: list[str] = []
-        if not is_image and not text.strip():
-            warnings.append(EMPTY_TEXT_WARNING)
-        if extension == "pdf":
-            warnings.append(PDF_IMAGE_WARNING)
+        return await self.extract_many([(content, filename)])
 
-        source_data_url = (
-            self._data_url(
-                content, f"image/{'jpeg' if extension in {'jpg', 'jpeg'} else extension}"
+    async def extract_many(self, files: list[tuple[bytes, str]]) -> ProfileExtractionResult:
+        """Extract one website brief from one or more brand documents (single LLM call)."""
+
+        if not files:
+            return ProfileExtractionResult(
+                fields=OnboardingFormPatch(),
+                design_hints=ProfileDesignHints(),
+                images=[],
+                source_filename="",
+                warnings=[EMPTY_TEXT_WARNING],
             )
-            if is_image
-            else None
-        )
-        fields_task = asyncio.create_task(
-            self._extract_visual_fields(source_data_url)
-            if source_data_url is not None
-            else self._extract_fields(text)
-        )
-        if extension == "docx":
-            raw_images = await asyncio.to_thread(extract_docx_images, content)
-        elif extension == "pptx":
-            raw_images = await asyncio.to_thread(extract_pptx_images, content)
-        else:
-            raw_images = []
-        extraction = await fields_task
-        images = await asyncio.gather(*(self._to_extracted_image(image) for image in raw_images))
-        if source_data_url is not None:
+
+        warnings: list[str] = []
+        text_parts: list[str] = []
+        images: list[ExtractedImage] = []
+        names: list[str] = []
+        sole_image: tuple[bytes, str] | None = None
+
+        for content, filename in files:
+            names.append(filename)
+            extension = profile_extension(filename)
+            is_image = extension in {"png", "jpg", "jpeg"}
+            if extension == "pdf":
+                warnings.append(f"{filename}: {PDF_IMAGE_WARNING}")
+
+            if is_image:
+                if len(files) == 1:
+                    sole_image = (content, filename)
+                continue
+
+            text = await asyncio.to_thread(extract_profile_text, content, filename)
+            if text.strip():
+                text_parts.append(f"### File: {filename}\n{text.strip()}")
+            else:
+                warnings.append(f"{filename}: {EMPTY_TEXT_WARNING}")
+
+            if extension == "docx":
+                raw_images = await asyncio.to_thread(extract_docx_images, content)
+            elif extension == "pptx":
+                raw_images = await asyncio.to_thread(extract_pptx_images, content)
+            else:
+                raw_images = []
+            labeled = await asyncio.gather(*(self._to_extracted_image(image) for image in raw_images))
+            images.extend(labeled)
+
+        source_filename = ", ".join(names)
+
+        if sole_image is not None and not text_parts:
+            content, filename = sole_image
+            data_url = self._data_url(
+                content,
+                f"image/{'jpeg' if profile_extension(filename) in {'jpg', 'jpeg'} else profile_extension(filename)}",
+            )
+            extraction = await self._extract_visual_fields(data_url)
             try:
                 label = (
-                    (await self._image_labeler.label_image(source_data_url))
-                    .strip()
-                    .removesuffix(".")
+                    (await self._image_labeler.label_image(data_url)).strip().removesuffix(".")
                 )
             except Exception:
                 label = "profile image"
-            images = [
-                ExtractedImage(
-                    filename=filename, label=label or "profile image", data_url=source_data_url
-                )
-            ]
+            return ProfileExtractionResult(
+                fields=extraction.fields,
+                design_hints=extraction.design_hints,
+                images=[
+                    ExtractedImage(
+                        filename=filename,
+                        label=label or "profile image",
+                        data_url=data_url,
+                    )
+                ],
+                source_filename=source_filename,
+                warnings=warnings,
+            )
 
+        combined = "\n\n".join(text_parts)[:PROFILE_TEXT_LIMIT]
+        if not combined.strip():
+            warnings.append(EMPTY_TEXT_WARNING)
+        extraction = await self._extract_fields(combined)
         return ProfileExtractionResult(
             fields=extraction.fields,
             design_hints=extraction.design_hints,
-            images=list(images),
-            source_filename=filename,
+            images=images,
+            source_filename=source_filename,
             warnings=warnings,
         )
 

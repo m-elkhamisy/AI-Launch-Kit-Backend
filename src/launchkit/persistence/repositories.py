@@ -193,6 +193,10 @@ class PersistenceRepository:
         )
         return records.all()
 
+    async def delete_asset(self, asset: AssetRecord) -> None:
+        await self._session.delete(asset)
+        await self._session.flush()
+
     async def add_operation(self, *, project_id: str, kind: str) -> OperationRecord:
         record = OperationRecord(id=new_id("op"), project_id=project_id, kind=kind)
         self._session.add(record)
