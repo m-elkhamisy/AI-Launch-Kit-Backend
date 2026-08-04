@@ -51,24 +51,33 @@ class RepositoryStub:
     async def commit(self) -> None:
         self.commits += 1
 
+    async def refresh(self, record: ProjectRecord) -> None:
+        del record
+
     async def list_assets(self, project_id: str) -> list[Any]:
         del project_id
         return []
+
+    async def delete_asset(self, asset: Any) -> None:
+        del asset
 
     async def list_mockups(self, project_id: str) -> list[Any]:
         del project_id
         return []
 
 
-def test_create_resumes_existing_draft() -> None:
+def test_create_reuses_project_slot_but_resets_the_draft() -> None:
     repository = RepositoryStub()
     service = ProjectService(cast(Any, repository), "owner-1")
     draft = ProjectDraft()
     first = asyncio.run(service.create(draft))
+    repository.projects[0].business = {**repository.projects[0].business, "companyName": "Old Co"}
+    repository.projects[0].extracted_profile_fields = {"description": "stale"}
     second = asyncio.run(service.create(draft))
     assert first.id == second.id
     assert len(repository.projects) == 1
-    assert repository.commits == 1
+    assert second.business.company_name == ""
+    assert second.extracted_profile_fields == {}
 
 
 def test_create_blocks_after_website_generation() -> None:

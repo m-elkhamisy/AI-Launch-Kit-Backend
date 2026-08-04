@@ -54,14 +54,30 @@ class WorkflowJobHandlers:
         try:
             if self._profile_service is None:
                 raise ConfigurationError("OpenRouter is not configured")
-            asset_id = str(job.payload["assetId"])
-            asset = await session.get(AssetRecord, asset_id)
             project = await session.get(ProjectRecord, str(job.payload["projectId"]))
-            if asset is None or project is None:
+            if project is None:
                 raise RuntimeError("Profile workflow resources are missing")
-            content = await self._asset_store.get(asset.storage_key)
-            result = await self._profile_service.extract(content, asset.filename)
             repository = PersistenceRepository(session)
+            requested_id = str(job.payload.get("assetId") or "")
+            assets = [
+                asset
+                for asset in await repository.list_assets(project.id)
+                if asset.kind == "profile_source"
+            ]
+            # Prefer all brand documents on the project so multi-file uploads feed one brief.
+            if not assets and requested_id:
+                asset = await session.get(AssetRecord, requested_id)
+                if asset is not None and asset.kind == "profile_source":
+                    assets = [asset]
+            if not assets:
+                raise RuntimeError("Profile workflow resources are missing")
+
+            files: list[tuple[bytes, str]] = []
+            for asset in assets:
+                content = await self._asset_store.get(asset.storage_key)
+                files.append((content, asset.filename))
+
+            result = await self._profile_service.extract_many(files)
             image_views: list[dict[str, object]] = []
             for image in result.images:
                 image_content, content_type = decode_data_url(image.data_url)
@@ -81,9 +97,13 @@ class WorkflowJobHandlers:
                 image_views.append(asset_view(record).model_dump(by_alias=True))
 
             fields = result.fields.model_dump(by_alias=True, exclude_none=True)
-            project.extracted_profile_fields = fields
-            project.business = merge_empty(project.business, fields)
             hints = result.design_hints.model_dump(by_alias=True, exclude_none=True)
+            # Surface design hints with business fields so the AI Summary modal has one source.
+            project.extracted_profile_fields = {
+                **fields,
+                **{key: value for key, value in hints.items() if value},
+            }
+            project.business = merge_empty(project.business, fields)
             project.design = merge_empty(project.design, hints)
             operation.result = {
                 "fields": fields,

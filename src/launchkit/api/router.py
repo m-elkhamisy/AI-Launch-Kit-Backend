@@ -3,7 +3,7 @@
 from io import BytesIO
 from typing import Annotated
 
-from fastapi import APIRouter, File, Header, Request, UploadFile, status
+from fastapi import APIRouter, File, Form, Header, Request, UploadFile, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import text
 
@@ -27,6 +27,7 @@ from launchkit.api.dependencies import (
     WorkflowServiceDependency,
 )
 from launchkit.api.schemas import HealthResponse, WizardCatalogResponse
+from launchkit.assets import BRAND_ASSET_MAX_BYTES
 from launchkit.builds import BuildCreate, BuildView
 from launchkit.builds.sse import stream_build_events
 from launchkit.builds.webhooks import WebhookReceipt
@@ -34,7 +35,13 @@ from launchkit.deployment import DeploymentCreate, DeploymentView
 from launchkit.deployment.webhooks import VercelWebhookReceipt
 from launchkit.persistence import Database
 from launchkit.projects import ProjectDraft, ProjectPatch, ProjectSummaryView, ProjectView
-from launchkit.workflows import MockupSelection, MockupView, OperationView
+from launchkit.workflows import (
+    AssetView,
+    MockupSelection,
+    MockupView,
+    OperationView,
+    ProfileExtractionFromAsset,
+)
 
 api_router = APIRouter(prefix="/api/v1")
 
@@ -128,6 +135,55 @@ async def start_profile_extraction(
         profile.content_type or "application/octet-stream",
         content,
     )
+
+
+@api_router.post(
+    "/projects/{project_id}/profile-extractions/from-asset",
+    response_model=OperationView,
+    status_code=status.HTTP_202_ACCEPTED,
+    tags=["profiles"],
+)
+async def start_profile_extraction_from_asset(
+    project_id: str,
+    service: WorkflowServiceDependency,
+    body: ProfileExtractionFromAsset,
+) -> OperationView:
+    return await service.start_profile_extraction_from_asset(project_id, body.asset_id)
+
+
+@api_router.post(
+    "/projects/{project_id}/assets",
+    response_model=AssetView,
+    status_code=status.HTTP_201_CREATED,
+    tags=["assets"],
+)
+async def upload_project_asset(
+    project_id: str,
+    service: WorkflowServiceDependency,
+    file: Annotated[UploadFile, File()],
+    kind: Annotated[str, Form()] = "document",
+) -> AssetView:
+    content = await file.read(BRAND_ASSET_MAX_BYTES + 1)
+    return await service.upload_brand_asset(
+        project_id,
+        kind=kind,
+        filename=file.filename or "",
+        content_type=file.content_type or "application/octet-stream",
+        content=content,
+    )
+
+
+@api_router.delete(
+    "/projects/{project_id}/assets/{asset_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    tags=["assets"],
+)
+async def delete_project_asset(
+    project_id: str,
+    asset_id: str,
+    service: WorkflowServiceDependency,
+) -> None:
+    await service.delete_brand_asset(project_id, asset_id)
 
 
 @api_router.post(

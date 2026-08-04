@@ -30,6 +30,10 @@ class MockupSelection(AliasedModel):
     mockup_id: str
 
 
+class ProfileExtractionFromAsset(AliasedModel):
+    asset_id: str
+
+
 class OperationView(AliasedModel):
     id: str
     project_id: str | None

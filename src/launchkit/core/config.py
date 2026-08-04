@@ -45,8 +45,8 @@ class Settings(BaseSettings):
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     site_url: str = "http://localhost:8000"
     openrouter_app_title: str = "LaunchKit Generator"
-    generation_model: str = "anthropic/claude-sonnet-5"
-    utility_model: str | None = None
+    generation_model: str = "anthropic/claude-sonnet-4.6"
+    utility_model: str | None = "openai/gpt-4o-mini"
     image_model: str = "google/gemini-2.5-flash-image"
     pexels_api_key: SecretStr | None = None
     pexels_base_url: str = "https://api.pexels.com/v1"

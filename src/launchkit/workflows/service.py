@@ -5,12 +5,14 @@ import json
 import uuid
 from collections.abc import Sequence
 
-from launchkit.assets import AssetBlobStore, validate_profile_upload
+from launchkit.assets import AssetBlobStore, validate_brand_upload, validate_profile_upload
 from launchkit.core.config import Settings
 from launchkit.core.exceptions import ConfigurationError, DomainError
 from launchkit.persistence.models import AssetRecord, MockupRecord, OperationRecord, ProjectRecord
 from launchkit.persistence.repositories import PersistenceRepository
 from launchkit.workflows.models import AssetView, MockupView, OperationView
+
+MAX_BRAND_DOCUMENTS = 5
 
 
 class WorkflowNotFoundError(DomainError):
@@ -66,6 +68,82 @@ class WorkflowService:
         )
         await self._repository.commit()
         return operation_view(operation)
+
+    async def start_profile_extraction_from_asset(
+        self, project_id: str, asset_id: str
+    ) -> OperationView:
+        """Queue AI extraction against an already-stored brand document."""
+
+        await self._project(project_id)
+        if self._settings.openrouter_api_key is None:
+            raise ConfigurationError("OpenRouter is required for profile extraction")
+        asset = await self._repository.get_asset_for_project(asset_id, project_id)
+        if asset is None or asset.kind != "profile_source":
+            raise WorkflowNotFoundError("Brand document not found")
+        operation = await self._repository.add_operation(
+            project_id=project_id, kind="profile_extraction"
+        )
+        await self._repository.enqueue_job(
+            "profile.extract",
+            {"projectId": project_id, "assetId": asset.id},
+            operation_id=operation.id,
+        )
+        await self._repository.commit()
+        return operation_view(operation)
+
+    async def upload_brand_asset(
+        self,
+        project_id: str,
+        *,
+        kind: str,
+        filename: str,
+        content_type: str,
+        content: bytes,
+    ) -> AssetView:
+        """Persist a Business-step logo or supporting document without AI extraction."""
+
+        await self._project(project_id)
+        if kind not in {"logo", "document"}:
+            raise DomainError("Brand asset kind must be logo or document.")
+        upload = validate_brand_upload(filename, content_type, content, kind=kind)
+        assets = list(await self._repository.list_assets(project_id))
+        if kind == "document":
+            document_count = sum(1 for asset in assets if asset.kind == "profile_source")
+            if document_count >= MAX_BRAND_DOCUMENTS:
+                raise DomainError(f"Upload at most {MAX_BRAND_DOCUMENTS} brand documents.")
+        if kind == "logo":
+            for existing in assets:
+                if existing.kind == "profile_image" and "logo" in existing.label.lower():
+                    await self._repository.delete_asset(existing)
+                    break
+
+        folder = "logos" if kind == "logo" else "profiles"
+        storage_key = f"projects/{project_id}/{folder}/{uuid.uuid4().hex}-{upload.filename}"
+        await self._asset_store.put(storage_key, upload.content, upload.content_type)
+        asset_kind = "profile_image" if kind == "logo" else "profile_source"
+        label = "logo" if kind == "logo" else "Brand document"
+        record = await self._repository.add_asset(
+            project_id=project_id,
+            kind=asset_kind,
+            storage_key=storage_key,
+            filename=upload.filename,
+            label=label,
+            content_type=upload.content_type,
+            size=len(upload.content),
+            sha256=hashlib.sha256(upload.content).hexdigest(),
+        )
+        await self._repository.commit()
+        return asset_view(record)
+
+    async def delete_brand_asset(self, project_id: str, asset_id: str) -> None:
+        await self._project(project_id)
+        asset = await self._repository.get_asset_for_project(asset_id, project_id)
+        if asset is None:
+            raise WorkflowNotFoundError("Asset not found")
+        if asset.kind not in {"profile_image", "profile_source"}:
+            raise DomainError("Only brand upload assets can be removed.")
+        await self._repository.delete_asset(asset)
+        await self._repository.commit()
 
     async def start_mockups(self, project_id: str, idempotency_key: str) -> OperationView:
         project = await self._project(project_id)
