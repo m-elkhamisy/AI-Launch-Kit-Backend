@@ -10,6 +10,7 @@ from launchkit.core.config import Settings
 from launchkit.core.exceptions import ConfigurationError, DomainError
 from launchkit.persistence.models import AssetRecord, MockupRecord, OperationRecord, ProjectRecord
 from launchkit.persistence.repositories import PersistenceRepository
+from launchkit.profiles.website import validate_website_url
 from launchkit.workflows.models import AssetView, MockupView, OperationView
 
 MAX_BRAND_DOCUMENTS = 5
@@ -86,6 +87,34 @@ class WorkflowService:
         await self._repository.enqueue_job(
             "profile.extract",
             {"projectId": project_id, "assetId": asset.id},
+            operation_id=operation.id,
+        )
+        await self._repository.commit()
+        return operation_view(operation)
+
+    async def start_website_extraction(
+        self, project_id: str, url: str | None = None
+    ) -> OperationView:
+        """Queue a combined AI brief: scrape website first (if given), then brand documents."""
+
+        await self._project(project_id)
+        if self._settings.openrouter_api_key is None:
+            raise ConfigurationError("OpenRouter is required for website discovery")
+        raw_url = (url or "").strip()
+        documents = [
+            asset
+            for asset in await self._repository.list_assets(project_id)
+            if asset.kind == "profile_source"
+        ]
+        if not raw_url and not documents:
+            raise DomainError("Upload brand documents or enter a website address.")
+        normalized = validate_website_url(raw_url) if raw_url else None
+        operation = await self._repository.add_operation(
+            project_id=project_id, kind="profile_extraction"
+        )
+        await self._repository.enqueue_job(
+            "website.extract",
+            {"projectId": project_id, "url": normalized or ""},
             operation_id=operation.id,
         )
         await self._repository.commit()

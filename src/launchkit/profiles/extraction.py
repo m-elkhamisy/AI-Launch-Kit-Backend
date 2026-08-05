@@ -48,24 +48,43 @@ class ProfileExtractionService:
     async def extract(self, content: bytes, filename: str) -> ProfileExtractionResult:
         return await self.extract_many([(content, filename)])
 
-    async def extract_many(self, files: list[tuple[bytes, str]]) -> ProfileExtractionResult:
-        """Extract one website brief from one or more brand documents (single LLM call)."""
+    async def extract_from_text(self, text: str, source: str) -> ProfileExtractionResult:
+        """Extract a website brief from already-readable text (e.g. a scraped web page)."""
 
-        if not files:
-            return ProfileExtractionResult(
-                fields=OnboardingFormPatch(),
-                design_hints=ProfileDesignHints(),
-                images=[],
-                source_filename="",
-                warnings=[EMPTY_TEXT_WARNING],
-            )
+        return await self.extract_many(
+            [],
+            website_text=text,
+            website_url=source,
+        )
 
+    async def extract_many(
+        self,
+        files: list[tuple[bytes, str]] | None = None,
+        *,
+        website_text: str | None = None,
+        website_url: str | None = None,
+    ) -> ProfileExtractionResult:
+        """Extract one brief from an optional website scrape first, then brand documents.
+
+        Website text is always ordered ahead of documents so discovery prioritises the live site.
+        """
+
+        files = list(files or [])
         warnings: list[str] = []
         text_parts: list[str] = []
         images: list[ExtractedImage] = []
         names: list[str] = []
         sole_image: tuple[bytes, str] | None = None
 
+        # 1) Scraped website first (when present).
+        if website_text and website_text.strip():
+            label = (website_url or "website").strip() or "website"
+            names.append(label)
+            text_parts.append(f"### Website: {label}\n{website_text.strip()}")
+        elif website_url:
+            warnings.append(f"{website_url}: {EMPTY_TEXT_WARNING}")
+
+        # 2) Brand documents after the website.
         for content, filename in files:
             names.append(filename)
             extension = profile_extension(filename)
@@ -74,7 +93,7 @@ class ProfileExtractionService:
                 warnings.append(f"{filename}: {PDF_IMAGE_WARNING}")
 
             if is_image:
-                if len(files) == 1:
+                if len(files) == 1 and not text_parts:
                     sole_image = (content, filename)
                 continue
 
@@ -94,6 +113,16 @@ class ProfileExtractionService:
             images.extend(labeled)
 
         source_filename = ", ".join(names)
+
+        if not files and not text_parts:
+            warnings.append(EMPTY_TEXT_WARNING)
+            return ProfileExtractionResult(
+                fields=OnboardingFormPatch(),
+                design_hints=ProfileDesignHints(),
+                images=[],
+                source_filename=source_filename,
+                warnings=warnings,
+            )
 
         if sole_image is not None and not text_parts:
             content, filename = sole_image
@@ -122,7 +151,7 @@ class ProfileExtractionService:
                 warnings=warnings,
             )
 
-        combined = "\n\n".join(text_parts)[:PROFILE_TEXT_LIMIT]
+        combined = self._combine_source_texts(text_parts)
         if not combined.strip():
             warnings.append(EMPTY_TEXT_WARNING)
         extraction = await self._extract_fields(combined)
@@ -133,6 +162,23 @@ class ProfileExtractionService:
             source_filename=source_filename,
             warnings=warnings,
         )
+
+    @staticmethod
+    def _combine_source_texts(text_parts: list[str]) -> str:
+        """Build one LLM context: website first (always kept in budget), then documents."""
+
+        if not text_parts:
+            return ""
+        website_parts = [part for part in text_parts if part.startswith("### Website:")]
+        document_parts = [part for part in text_parts if not part.startswith("### Website:")]
+        if website_parts and document_parts:
+            # Half the budget each so large menus never wipe the scraped site (or vice versa).
+            website_budget = PROFILE_TEXT_LIMIT // 2
+            document_budget = PROFILE_TEXT_LIMIT - website_budget
+            website_block = "\n\n".join(website_parts)[:website_budget]
+            document_block = "\n\n".join(document_parts)[:document_budget]
+            return f"{website_block}\n\n{document_block}"
+        return "\n\n".join(text_parts)[:PROFILE_TEXT_LIMIT]
 
     async def _extract_fields(self, text: str) -> ProfileFieldExtraction:
         if not text.strip():

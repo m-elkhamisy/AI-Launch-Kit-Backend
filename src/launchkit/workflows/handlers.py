@@ -14,13 +14,14 @@ from launchkit.adapters.openrouter import OpenRouterAdapter
 from launchkit.adapters.pexels import PexelsAdapter
 from launchkit.assets import AssetBlobStore, safe_filename
 from launchkit.core.config import Settings
-from launchkit.core.exceptions import ConfigurationError, ProviderError
+from launchkit.core.exceptions import ConfigurationError, DomainError, ProviderError
 from launchkit.generation.briefing import BriefService
 from launchkit.generation.html_generation import HtmlGenerationService
 from launchkit.generation.mockups import MockupGenerationService
 from launchkit.persistence.models import AssetRecord, JobRecord, OperationRecord, ProjectRecord
 from launchkit.persistence.repositories import PersistenceRepository
 from launchkit.profiles import ExtractedImage, ProfileExtractionService
+from launchkit.profiles.website import fetch_website_html, website_page_text
 from launchkit.projects.catalogs import BUSINESS_CATEGORIES
 from launchkit.projects.models import BusinessDraft, DesignDraft
 from launchkit.workflows.service import asset_view, mockup_view
@@ -35,10 +36,12 @@ class WorkflowJobHandlers:
         *,
         profile_service: ProfileExtractionService | None,
         mockup_service: MockupGenerationService | None,
+        http_client: httpx.AsyncClient | None = None,
     ) -> None:
         self._asset_store = asset_store
         self._profile_service = profile_service
         self._mockup_service = mockup_service
+        self._http_client = http_client
 
     @property
     def handlers(
@@ -46,6 +49,7 @@ class WorkflowJobHandlers:
     ) -> dict[str, Callable[[JobRecord, AsyncSession], Awaitable[None]]]:
         return {
             "profile.extract": self.profile_extract,
+            "website.extract": self.website_extract,
             "mockups.generate": self.generate_mockups,
         }
 
@@ -57,6 +61,7 @@ class WorkflowJobHandlers:
             project = await session.get(ProjectRecord, str(job.payload["projectId"]))
             if project is None:
                 raise RuntimeError("Profile workflow resources are missing")
+            project.extracted_profile_fields = {}
             repository = PersistenceRepository(session)
             requested_id = str(job.payload.get("assetId") or "")
             assets = [
@@ -98,17 +103,95 @@ class WorkflowJobHandlers:
 
             fields = result.fields.model_dump(by_alias=True, exclude_none=True)
             hints = result.design_hints.model_dump(by_alias=True, exclude_none=True)
-            # Surface design hints with business fields so the AI Summary modal has one source.
+            # Full replace so re-runs are not mixed with a previous document / website extract.
             project.extracted_profile_fields = {
                 **fields,
                 **{key: value for key, value in hints.items() if value},
             }
-            project.business = merge_empty(project.business, fields)
-            project.design = merge_empty(project.design, hints)
             operation.result = {
                 "fields": fields,
                 "designHints": hints,
                 "assets": image_views,
+                "sourceFilename": result.source_filename,
+                "warnings": result.warnings,
+            }
+            self._complete(operation)
+        except Exception as exc:
+            self._fail(operation, exc)
+            raise
+
+    async def website_extract(self, job: JobRecord, session: AsyncSession) -> None:
+        """Scrape an optional website first, then brand documents, into one AI brief."""
+
+        operation = await self._start(job, session)
+        try:
+            if self._profile_service is None:
+                raise ConfigurationError("OpenRouter is not configured")
+            project = await session.get(ProjectRecord, str(job.payload["projectId"]))
+            if project is None:
+                raise RuntimeError("Website discovery resources are missing")
+
+            url = str(job.payload.get("url") or "").strip()
+            # Drop prior extract so a partial failure cannot leave stale document-only brief.
+            project.extracted_profile_fields = {}
+            website_text: str | None = None
+            if url:
+                if self._http_client is None:
+                    raise ConfigurationError("OpenRouter is not configured")
+                html = await fetch_website_html(self._http_client, url)
+                scraped = website_page_text(html)
+                website_text = scraped if scraped.strip() else None
+
+            repository = PersistenceRepository(session)
+            assets = [
+                asset
+                for asset in await repository.list_assets(project.id)
+                if asset.kind == "profile_source"
+            ]
+            files: list[tuple[bytes, str]] = []
+            for asset in assets:
+                content = await self._asset_store.get(asset.storage_key)
+                files.append((content, asset.filename))
+
+            if not url and not files:
+                raise DomainError("Upload brand documents or enter a website address.")
+
+            result = await self._profile_service.extract_many(
+                files,
+                website_text=website_text,
+                website_url=url or None,
+            )
+            image_views: list[dict[str, object]] = []
+            for image in result.images:
+                image_content, content_type = decode_data_url(image.data_url)
+                filename = safe_filename(image.filename, "profile-image")
+                storage_key = f"projects/{project.id}/profile-images/{uuid.uuid4().hex}-{filename}"
+                await self._asset_store.put(storage_key, image_content, content_type)
+                record = await repository.add_asset(
+                    project_id=project.id,
+                    kind="profile_image",
+                    storage_key=storage_key,
+                    filename=filename,
+                    label=image.label,
+                    content_type=content_type,
+                    size=len(image_content),
+                    sha256=hashlib.sha256(image_content).hexdigest(),
+                )
+                image_views.append(asset_view(record).model_dump(by_alias=True))
+
+            fields = result.fields.model_dump(by_alias=True, exclude_none=True)
+            hints = result.design_hints.model_dump(by_alias=True, exclude_none=True)
+            # Full replace — each AI Summary run reflects only the current URL + documents.
+            # Do not merge into business/design here: that bled prior extracts into later runs.
+            project.extracted_profile_fields = {
+                **fields,
+                **{key: value for key, value in hints.items() if value},
+            }
+            operation.result = {
+                "fields": fields,
+                "designHints": hints,
+                "assets": image_views,
+                "sourceUrl": url or None,
                 "sourceFilename": result.source_filename,
                 "warnings": result.warnings,
             }
@@ -209,6 +292,10 @@ class WorkflowJobHandlers:
         if isinstance(exc, ConfigurationError):
             operation.error_code = "provider_configuration_missing"
             operation.error_message = "The generation service is not configured."
+        elif isinstance(exc, DomainError):
+            # Domain messages are written for end users (e.g. unreachable website).
+            operation.error_code = "invalid_request"
+            operation.error_message = str(exc)
         elif isinstance(exc, ProviderError):
             operation.error_code = "provider_unavailable"
             operation.error_message = "The generation service could not complete this operation."
@@ -222,7 +309,9 @@ def create_workflow_job_handlers(
 ) -> WorkflowJobHandlers:
     api_key = settings.openrouter_api_key.get_secret_value() if settings.openrouter_api_key else ""
     if not api_key:
-        return WorkflowJobHandlers(asset_store, profile_service=None, mockup_service=None)
+        return WorkflowJobHandlers(
+            asset_store, profile_service=None, mockup_service=None, http_client=client
+        )
     queue = RequestQueue(
         max_concurrent=settings.openrouter_max_concurrent,
         min_gap_seconds=settings.openrouter_min_request_gap_ms / 1000,
@@ -248,7 +337,9 @@ def create_workflow_job_handlers(
         image_generator=openrouter,
         image_search=pexels,
     )
-    return WorkflowJobHandlers(asset_store, profile_service=profile, mockup_service=mockups)
+    return WorkflowJobHandlers(
+        asset_store, profile_service=profile, mockup_service=mockups, http_client=client
+    )
 
 
 def decode_data_url(value: str) -> tuple[bytes, str]:

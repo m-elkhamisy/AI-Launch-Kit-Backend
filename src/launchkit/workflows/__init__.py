@@ -6,6 +6,7 @@ from launchkit.workflows.models import (
     MockupView,
     OperationView,
     ProfileExtractionFromAsset,
+    WebsiteExtractionRequest,
 )
 from launchkit.workflows.service import WorkflowNotFoundError, WorkflowService
 
@@ -15,6 +16,7 @@ __all__ = [
     "MockupView",
     "OperationView",
     "ProfileExtractionFromAsset",
+    "WebsiteExtractionRequest",
     "WorkflowNotFoundError",
     "WorkflowService",
 ]
