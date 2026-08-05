@@ -135,8 +135,7 @@ def test_profile_upload_runs_durably_and_persists_extracted_assets(tmp_path: Pat
     assert operation.json()["status"] == "completed"
     assert operation.json()["result"]["fields"]["companyName"] == "Visual Co"
     assert "data:" not in str(operation.json()["result"])
-    assert refreshed.json()["business"]["companyName"] == "Visual Co"
-    assert refreshed.json()["design"]["cta"] == "Explore"
+    assert refreshed.json()["extractedProfileFields"]["companyName"] == "Visual Co"
     assert content.content == png_bytes()
     assert content.headers["x-content-type-options"] == "nosniff"
 
@@ -176,6 +175,114 @@ def test_mockup_generation_is_idempotent_selectable_and_sandboxed(tmp_path: Path
     assert refreshed.json()["selectedMockupId"] == selected.json()["id"]
     assert preview.text.startswith("<!DOCTYPE html>")
     assert preview.headers["content-security-policy"].startswith("sandbox allow-scripts")
+
+
+class RecordingHttpClient:
+    """Minimal stand-in for httpx.AsyncClient that returns fixed HTML."""
+
+    def __init__(self, html: str, *, status_code: int = 200) -> None:
+        self.html = html
+        self.status_code = status_code
+        self.requested: list[str] = []
+
+    async def get(self, url: str, **_kwargs: object) -> Any:
+        self.requested.append(url)
+
+        class Response:
+            status_code = self.status_code
+            text = self.html
+            headers = {"content-type": "text/html; charset=utf-8"}
+
+        return Response()
+
+
+def test_website_discovery_runs_durably_and_persists_extracted_fields(tmp_path: Path) -> None:
+    with workflow_client(tmp_path) as (client, settings, store):
+        created = project(client)
+        # Document joins the website text in one brief (docs after scrape).
+        client.post(
+            f"/api/v1/projects/{created['id']}/assets",
+            data={"kind": "document"},
+            files={"file": ("notes.txt", b"Harbour Cafe serves local founders.", "text/plain")},
+        )
+        html = """
+        <html><head><title>Harbour Cafe</title>
+        <meta name="description" content="Specialty coffee for local teams.">
+        </head><body><h1>Harbour Cafe</h1><p>We serve founders and product teams.</p></body></html>
+        """
+        http = RecordingHttpClient(html)
+        service = ProfileExtractionService(FieldExtractorStub(), LabelerStub(), VisualExtractorStub())
+        handlers = WorkflowJobHandlers(
+            store, profile_service=service, mockup_service=None, http_client=http
+        )
+
+        queued = client.post(
+            f"/api/v1/projects/{created['id']}/website-extractions",
+            json={"url": "https://harbour.example"},
+        )
+        assert queued.status_code == 202
+        assert queued.json()["status"] == "queued"
+        assert run_worker(settings, handlers) == 1
+
+        operation = client.get(f"/api/v1/operations/{queued.json()['id']}")
+        refreshed = client.get(f"/api/v1/projects/{created['id']}")
+
+    assert operation.json()["status"] == "completed"
+    assert operation.json()["result"]["fields"]["companyName"] == "Profile Co"
+    assert operation.json()["result"]["sourceUrl"] == "https://harbour.example"
+    assert refreshed.json()["extractedProfileFields"]["companyName"] == "Profile Co"
+    assert refreshed.json()["extractedProfileFields"]["tagline"] == "Move clearly"
+    assert http.requested == ["https://harbour.example"]
+
+
+def test_website_discovery_works_with_documents_only(tmp_path: Path) -> None:
+    with workflow_client(tmp_path) as (client, settings, store):
+        created = project(client)
+        client.post(
+            f"/api/v1/projects/{created['id']}/assets",
+            data={"kind": "document"},
+            files={"file": ("about.txt", b"Profile Co builds tools for teams.", "text/plain")},
+        )
+        service = ProfileExtractionService(FieldExtractorStub(), LabelerStub(), VisualExtractorStub())
+        handlers = WorkflowJobHandlers(
+            store, profile_service=service, mockup_service=None, http_client=None
+        )
+
+        queued = client.post(
+            f"/api/v1/projects/{created['id']}/website-extractions",
+            json={},
+        )
+        assert queued.status_code == 202
+        assert run_worker(settings, handlers) == 1
+        operation = client.get(f"/api/v1/operations/{queued.json()['id']}")
+
+    assert operation.json()["status"] == "completed"
+    assert operation.json()["result"]["fields"]["companyName"] == "Profile Co"
+    assert operation.json()["result"]["sourceUrl"] is None
+
+
+def test_website_discovery_rejects_empty_sources(tmp_path: Path) -> None:
+    with workflow_client(tmp_path) as (client, _, _):
+        created = project(client)
+        response = client.post(
+            f"/api/v1/projects/{created['id']}/website-extractions",
+            json={},
+        )
+
+    assert response.status_code == 409
+    assert "document" in response.json()["error"]["message"].lower()
+
+
+def test_website_discovery_rejects_private_urls(tmp_path: Path) -> None:
+    with workflow_client(tmp_path) as (client, _, _):
+        created = project(client)
+        response = client.post(
+            f"/api/v1/projects/{created['id']}/website-extractions",
+            json={"url": "http://127.0.0.1"},
+        )
+
+    assert response.status_code == 409
+    assert "private network" in response.json()["error"]["message"].lower()
 
 
 def test_upload_errors_and_missing_provider_are_controlled(tmp_path: Path) -> None:

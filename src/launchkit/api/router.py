@@ -41,6 +41,7 @@ from launchkit.workflows import (
     MockupView,
     OperationView,
     ProfileExtractionFromAsset,
+    WebsiteExtractionRequest,
 )
 
 api_router = APIRouter(prefix="/api/v1")
@@ -149,6 +150,21 @@ async def start_profile_extraction_from_asset(
     body: ProfileExtractionFromAsset,
 ) -> OperationView:
     return await service.start_profile_extraction_from_asset(project_id, body.asset_id)
+
+
+@api_router.post(
+    "/projects/{project_id}/website-extractions",
+    response_model=OperationView,
+    status_code=status.HTTP_202_ACCEPTED,
+    tags=["profiles"],
+)
+async def start_website_extraction(
+    project_id: str,
+    service: WorkflowServiceDependency,
+    body: WebsiteExtractionRequest | None = None,
+) -> OperationView:
+    request = body or WebsiteExtractionRequest()
+    return await service.start_website_extraction(project_id, request.url)
 
 
 @api_router.post(

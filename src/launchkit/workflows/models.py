@@ -34,6 +34,12 @@ class ProfileExtractionFromAsset(AliasedModel):
     asset_id: str
 
 
+class WebsiteExtractionRequest(AliasedModel):
+    """Optional website URL; documents already on the project are always included."""
+
+    url: str | None = None
+
+
 class OperationView(AliasedModel):
     id: str
     project_id: str | None
