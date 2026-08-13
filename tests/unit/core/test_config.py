@@ -13,7 +13,8 @@ def test_settings_defaults() -> None:
     assert settings.log_json is False
     assert settings.openrouter_api_key is None
     assert settings.openrouter_max_concurrent == 2
-    assert settings.utility_model is None
+    assert settings.generation_model == "anthropic/claude-sonnet-4.6"
+    assert settings.utility_model == "openai/gpt-4o-mini"
 
 
 def test_settings_read_prefixed_environment(monkeypatch: pytest.MonkeyPatch) -> None:

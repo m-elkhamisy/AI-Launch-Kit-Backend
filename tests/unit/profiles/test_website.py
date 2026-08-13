@@ -1,0 +1,58 @@
+"""Website discovery: URL validation and HTML-to-text reduction."""
+
+import pytest
+
+from launchkit.core.exceptions import DomainError
+from launchkit.profiles.website import validate_website_url, website_page_text
+
+
+class TestValidateWebsiteUrl:
+    def test_accepts_public_https_urls(self) -> None:
+        assert validate_website_url("https://example.com/menu") == "https://example.com/menu"
+
+    def test_prepends_https_to_bare_domains(self) -> None:
+        assert validate_website_url("example.com") == "https://example.com"
+
+    def test_rejects_empty_input(self) -> None:
+        with pytest.raises(DomainError):
+            validate_website_url("   ")
+
+    def test_rejects_non_web_schemes(self) -> None:
+        with pytest.raises(DomainError):
+            validate_website_url("ftp://example.com")
+
+    def test_rejects_localhost_and_private_addresses(self) -> None:
+        for target in ("localhost", "http://localhost:8000", "http://127.0.0.1", "http://10.0.0.5"):
+            with pytest.raises(DomainError):
+                validate_website_url(target)
+
+    def test_rejects_single_label_intranet_hosts(self) -> None:
+        with pytest.raises(DomainError):
+            validate_website_url("http://intranet")
+
+
+class TestWebsitePageText:
+    def test_extracts_title_meta_and_body_copy(self) -> None:
+        html = """
+        <html><head>
+          <title>Lucknow Cuisine</title>
+          <meta name="description" content="Authentic Awadhi food in the city centre.">
+          <style>body { color: red; }</style>
+          <script>console.log("skip me");</script>
+        </head><body>
+          <h1>Welcome to Lucknow Cuisine</h1>
+          <p>Family recipes since 1985.</p>
+          <img src="hero.jpg" alt="Chef plating biryani">
+        </body></html>
+        """
+        text = website_page_text(html)
+        assert "Page title: Lucknow Cuisine" in text
+        assert "Meta description: Authentic Awadhi food in the city centre." in text
+        assert "Welcome to Lucknow Cuisine" in text
+        assert "Family recipes since 1985." in text
+        assert "Chef plating biryani" in text
+        assert "skip me" not in text
+        assert "color: red" not in text
+
+    def test_returns_empty_string_for_empty_page(self) -> None:
+        assert website_page_text("<html><body></body></html>") == ""

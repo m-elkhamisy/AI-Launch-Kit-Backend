@@ -15,6 +15,7 @@ from launchkit.assets.validation import (
     UploadTooLargeError,
     UploadValidationError,
     safe_filename,
+    validate_brand_upload,
     validate_profile_upload,
 )
 
@@ -66,6 +67,26 @@ def test_profile_upload_accepts_advertised_types(
 
     assert validated.filename == filename
     assert validated.content == content
+
+
+def test_logo_upload_accepts_svg() -> None:
+    validated = validate_brand_upload(
+        "logo.svg",
+        "image/svg+xml",
+        b'<svg xmlns="http://www.w3.org/2000/svg"><circle r="1"/></svg>',
+        kind="logo",
+    )
+    assert validated.extension == "svg"
+
+
+def test_logo_upload_rejects_script_svg() -> None:
+    with pytest.raises(UploadValidationError):
+        validate_brand_upload(
+            "logo.svg",
+            "image/svg+xml",
+            b"<svg><script>alert(1)</script></svg>",
+            kind="logo",
+        )
 
 
 @pytest.mark.parametrize(

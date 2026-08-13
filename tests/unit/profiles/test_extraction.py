@@ -176,7 +176,9 @@ def test_profile_service_skips_field_call_for_empty_pdf_and_warns() -> None:
 
     assert fields.text == ""
     assert result.fields.model_dump(exclude_none=True) == {}
-    assert result.warnings == [EMPTY_TEXT_WARNING, PDF_IMAGE_WARNING]
+    assert f"empty.pdf: {PDF_IMAGE_WARNING}" in result.warnings
+    assert f"empty.pdf: {EMPTY_TEXT_WARNING}" in result.warnings
+    assert EMPTY_TEXT_WARNING in result.warnings
 
 
 @pytest.mark.parametrize(("fail", "label"), [(True, "ignored"), (False, "")])
@@ -189,6 +191,27 @@ def test_profile_service_uses_photo_when_labeling_fails_or_is_empty(fail: bool, 
     result = asyncio.run(service.extract(content, "profile.docx"))
 
     assert result.images[0].label == "photo"
+
+
+def test_profile_service_prepends_website_and_documents_in_one_llm_call() -> None:
+    extractor = FieldExtractorStub()
+    service = ProfileExtractionService(extractor, ImageLabelerStub())
+
+    result = asyncio.run(
+        service.extract_many(
+            [(b"Menu: biryani and chai for office teams.", "menu.txt")],
+            website_text="Harbour Cafe — specialty coffee downtown.",
+            website_url="https://harbour.example",
+        )
+    )
+
+    assert result.fields.company_name == "Acme"
+    assert "### Website: https://harbour.example" in extractor.text
+    assert "Harbour Cafe" in extractor.text
+    assert "### File: menu.txt" in extractor.text
+    assert "biryani" in extractor.text
+    # Website section appears before documents.
+    assert extractor.text.index("### Website:") < extractor.text.index("### File:")
 
 
 def test_profile_service_extracts_visual_profile_without_text_warning() -> None:
