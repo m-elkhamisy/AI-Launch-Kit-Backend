@@ -19,6 +19,20 @@ def test_json_logging_emits_structured_event(capsys: pytest.CaptureFixture[str])
     assert event["level"] == "info"
 
 
+def test_json_logging_includes_exception_text(capsys: pytest.CaptureFixture[str]) -> None:
+    configure_logging(Settings(log_json=True))
+
+    try:
+        raise RuntimeError("vercel token rejected")
+    except RuntimeError:
+        structlog.get_logger().exception("job_failed", job_id="job_test", kind="deployment.create")
+
+    event = json.loads(capsys.readouterr().out)
+    assert event["event"] == "job_failed"
+    assert event["kind"] == "deployment.create"
+    assert "vercel token rejected" in event["exception"]
+
+
 def test_service_context_processor() -> None:
     event = add_service_context(None, "info", {"event": "ready"})
 

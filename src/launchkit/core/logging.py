@@ -31,6 +31,9 @@ def configure_logging(settings: Settings) -> None:
             add_service_context,
             structlog.processors.add_log_level,
             structlog.processors.TimeStamper(fmt="iso", utc=True),
+            # Without this, logger.exception() only sets "exc_info": true and drops
+            # the traceback — which is why UAT job_failed lines were unactionable.
+            structlog.processors.format_exc_info,
             _renderer(settings.log_json),
         ],
         wrapper_class=structlog.make_filtering_bound_logger(
