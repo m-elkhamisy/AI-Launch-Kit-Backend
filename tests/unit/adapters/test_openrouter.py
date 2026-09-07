@@ -136,6 +136,56 @@ def test_adapter_normalizes_terminal_provider_errors(provider_response: httpx.Re
         asyncio.run(adapter.generate_text("prompt"))
 
 
+def test_generate_json_retries_invalid_payload_then_succeeds() -> None:
+    calls = 0
+    sleeps: list[float] = []
+
+    def handle(_request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            # Truncated mid-string — the failure mode seen on UAT AI Summary.
+            return response({"content": '{"fields":{"companyName":"Diners Fire Engi'})
+        return response(
+            {
+                "content": (
+                    '{"fields":{"companyName":"Diners Fire Engineers"},'
+                    '"designHints":{"tagline":"Fire Safety That Never Waits","cta":"Explore"}}'
+                )
+            }
+        )
+
+    adapter = adapter_for(httpx.MockTransport(handle), attempts=3, sleeps=sleeps)
+    fields = asyncio.run(adapter.extract_profile_fields("profile text"))
+
+    assert fields.fields.company_name == "Diners Fire Engineers"
+    assert fields.design_hints.tagline == "Fire Safety That Never Waits"
+    assert calls == 2
+    assert sleeps == [1.0]
+
+
+def test_generate_json_sends_json_object_response_format() -> None:
+    requests: list[httpx.Request] = []
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return response({"content": '{"value":1}'})
+
+    adapter = adapter_for(httpx.MockTransport(handle))
+    assert asyncio.run(adapter.generate_json("return json")) == {"value": 1}
+    body = json.loads(requests[0].content)
+    assert body["response_format"] == {"type": "json_object"}
+
+
+def test_message_text_joins_content_parts() -> None:
+    from launchkit.adapters.openrouter import message_text
+
+    assert message_text(" plain ") == "plain"
+    assert message_text([{"type": "text", "text": "hello"}, {"type": "text", "text": "world"}]) == (
+        "hello\nworld"
+    )
+
+
 @pytest.mark.parametrize(
     "content",
     ["", "[]", "not-json"],

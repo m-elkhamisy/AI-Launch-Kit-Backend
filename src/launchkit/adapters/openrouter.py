@@ -51,6 +51,24 @@ def strip_code_fence(raw: str) -> str:
     return re.sub(r"\s*```$", "", value, flags=re.IGNORECASE).strip()
 
 
+def message_text(content: object) -> str:
+    """Normalize OpenRouter message content to a single string."""
+
+    if isinstance(content, str):
+        return content.strip()
+    if isinstance(content, list):
+        parts: list[str] = []
+        for item in content:
+            if isinstance(item, str) and item.strip():
+                parts.append(item.strip())
+            elif isinstance(item, Mapping):
+                text = item.get("text")
+                if isinstance(text, str) and text.strip():
+                    parts.append(text.strip())
+        return "\n".join(parts).strip()
+    return ""
+
+
 class OpenRouterAdapter:
     """Normalize OpenRouter responses behind LaunchKit contracts."""
 
@@ -93,6 +111,7 @@ class OpenRouterAdapter:
         max_tokens: int = 4_000,
         model: str | None = None,
         temperature: float | None = None,
+        response_format: Mapping[str, Any] | None = None,
     ) -> str:
         messages: list[dict[str, Any]] = []
         if system is not None:
@@ -105,9 +124,11 @@ class OpenRouterAdapter:
         }
         if temperature is not None:
             body["temperature"] = temperature
+        if response_format is not None:
+            body["response_format"] = dict(response_format)
         message = await self._chat(body, "text generation")
-        content = message.get("content")
-        if not isinstance(content, str) or not content:
+        content = message_text(message.get("content"))
+        if not content:
             raise ProviderError("OpenRouter returned an empty text response", retryable=False)
         return content
 
@@ -119,22 +140,43 @@ class OpenRouterAdapter:
         max_tokens: int = 2_000,
         model: str | None = None,
     ) -> Mapping[str, Any]:
-        raw = await self.generate_text(
-            prompt,
-            system=system,
-            max_tokens=max_tokens,
-            model=model or self._utility_model,
-        )
-        cleaned = strip_code_fence(raw)
-        try:
-            payload = json.loads(cleaned)
-        except json.JSONDecodeError as exc:
-            raise ProviderError(
-                f"OpenRouter returned invalid JSON: {cleaned[:300]}", retryable=False
-            ) from exc
-        if not isinstance(payload, Mapping):
-            raise ProviderError("OpenRouter JSON response was not an object", retryable=False)
-        return payload
+        # Models occasionally emit truncated or lightly broken JSON for large
+        # extraction schemas. Retry a few times; invalid JSON is not stable.
+        last_error: ProviderError | None = None
+        # Cap parse retries separately from HTTP retries inside generate_text.
+        attempts = max(1, min(3, self._max_attempts))
+        for attempt in range(attempts):
+            raw = await self.generate_text(
+                prompt,
+                system=system,
+                max_tokens=max_tokens,
+                model=model or self._utility_model,
+                response_format={"type": "json_object"},
+            )
+            cleaned = strip_code_fence(raw)
+            try:
+                payload = json.loads(cleaned)
+            except json.JSONDecodeError as exc:
+                last_error = ProviderError(
+                    f"OpenRouter returned invalid JSON: {cleaned[:300]}",
+                    retryable=attempt < attempts - 1,
+                )
+                last_error.__cause__ = exc
+                if attempt == attempts - 1:
+                    raise last_error from exc
+                await self._sleep(2**attempt + self._jitter() * 0.4)
+                continue
+            if not isinstance(payload, Mapping):
+                last_error = ProviderError(
+                    "OpenRouter JSON response was not an object",
+                    retryable=attempt < attempts - 1,
+                )
+                if attempt == attempts - 1:
+                    raise last_error
+                await self._sleep(2**attempt + self._jitter() * 0.4)
+                continue
+            return payload
+        raise last_error or ProviderError("OpenRouter returned invalid JSON")
 
     async def generate_image(self, prompt: str) -> str:
         message = await self._chat(
@@ -178,8 +220,8 @@ class OpenRouterAdapter:
             },
             "image labeling",
         )
-        content = message.get("content")
-        return content if isinstance(content, str) and content else "photo"
+        content = message_text(message.get("content"))
+        return content or "photo"
 
     async def extract_profile_fields(self, text: str) -> ProfileFieldExtraction:
         schema = self._profile_schema()
@@ -188,6 +230,7 @@ class OpenRouterAdapter:
             "Sources may include a scraped WEBSITE section and one or more FILE sections. "
             "Synthesize a single brief using ALL provided sections. "
             "Return ONLY valid JSON matching the requested shape. "
+            "Keep each string value concise (1-3 sentences max) so the JSON stays complete. "
             "Never invent details that are not supported by the source text."
         )
         prompt = (
@@ -199,7 +242,7 @@ class OpenRouterAdapter:
             "- When BOTH website and file sections are present: combine them into one coherent "
             "brief. Prefer agreement when they overlap; include unique facts from either source. "
             "Do not ignore the Website section when it is present.\n"
-            "- Prefer concise multi-sentence or short-paragraph free-text values.\n"
+            "- Keep free-text fields short (about 1-3 sentences). Summarize long lists.\n"
             "- Map content into these fields carefully:\n"
             "  description: company / restaurant overview, story, mission\n"
             "  targetAudience: who the dining guests or customers are\n"
@@ -219,7 +262,7 @@ class OpenRouterAdapter:
         payload = await self.generate_json(
             prompt,
             system=system,
-            max_tokens=2_000,
+            max_tokens=4_000,
             model=self._utility_model,
         )
         return self._profile_result(payload)
@@ -248,8 +291,8 @@ class OpenRouterAdapter:
             },
             "profile image extraction",
         )
-        content = message.get("content")
-        if not isinstance(content, str):
+        content = message_text(message.get("content"))
+        if not content:
             raise ProviderError("OpenRouter returned empty profile fields", retryable=False)
         try:
             payload = json.loads(strip_code_fence(content))
