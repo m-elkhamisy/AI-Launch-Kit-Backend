@@ -10,7 +10,7 @@ import httpx
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from launchkit.assets import create_asset_store
+from launchkit.assets import create_asset_store, load_dotenv_file
 from launchkit.builds.handlers import create_build_job_handlers
 from launchkit.core.config import Settings, get_settings
 from launchkit.core.logging import configure_logging
@@ -75,13 +75,21 @@ class Worker:
                 except Exception as exc:
                     job.status = "failed"
                     job.last_error = str(exc)[:1000]
-                    self._logger.exception("job_failed", job_id=job.id, kind=job.kind)
+                    # Always include the message in structured fields — UAT JSON logs
+                    # previously only showed exc_info=true with no usable text.
+                    self._logger.exception(
+                        "job_failed",
+                        job_id=job.id,
+                        kind=job.kind,
+                        error=job.last_error,
+                    )
             job.lease_owner = None
             job.leased_until = None
             await session.commit()
 
 
 async def _main(once: bool) -> None:
+    load_dotenv_file()
     settings = get_settings()
     configure_logging(settings)
     use_system_certificates()

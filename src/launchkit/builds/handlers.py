@@ -15,7 +15,7 @@ from launchkit.adapters.llm_queue import RequestQueue
 from launchkit.adapters.openrouter import OpenRouterAdapter
 from launchkit.adapters.pexels import PexelsAdapter
 from launchkit.adapters.v0 import V0Adapter
-from launchkit.assets import AssetBlobStore, safe_filename
+from launchkit.assets import AssetBlobStore, project_asset_key, safe_filename
 from launchkit.builds.state import TERMINAL_BUILD_STATUSES, transition_build
 from launchkit.core.config import Settings
 from launchkit.core.exceptions import ConfigurationError, ProviderError
@@ -232,7 +232,14 @@ class BuildJobHandlers:
         repository = PersistenceRepository(session)
         archive = await self._v0.download_zip(chat_id)
         filename = safe_filename(archive.filename, "website.zip")
-        storage_key = f"projects/{build.project_id}/builds/{uuid.uuid4().hex}-{filename}"
+        project = await session.get(ProjectRecord, build.project_id)
+        owner_id = project.owner_id if project is not None else "owner"
+        storage_key = project_asset_key(
+            owner_id,
+            build.project_id,
+            "builds",
+            f"{uuid.uuid4().hex}-{filename}",
+        )
         await self._asset_store.put(storage_key, archive.content, "application/zip")
         asset = await repository.add_asset(
             project_id=build.project_id,

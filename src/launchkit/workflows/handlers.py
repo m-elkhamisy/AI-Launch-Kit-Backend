@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from launchkit.adapters.llm_queue import RequestQueue
 from launchkit.adapters.openrouter import OpenRouterAdapter
 from launchkit.adapters.pexels import PexelsAdapter
-from launchkit.assets import AssetBlobStore, safe_filename
+from launchkit.assets import AssetBlobStore, project_asset_key, safe_filename
 from launchkit.core.config import Settings
 from launchkit.core.exceptions import ConfigurationError, DomainError, ProviderError
 from launchkit.generation.briefing import BriefService
@@ -87,7 +87,12 @@ class WorkflowJobHandlers:
             for image in result.images:
                 image_content, content_type = decode_data_url(image.data_url)
                 filename = safe_filename(image.filename, "profile-image")
-                storage_key = f"projects/{project.id}/profile-images/{uuid.uuid4().hex}-{filename}"
+                storage_key = project_asset_key(
+                    project.owner_id,
+                    project.id,
+                    "profile-images",
+                    f"{uuid.uuid4().hex}-{filename}",
+                )
                 await self._asset_store.put(storage_key, image_content, content_type)
                 record = await repository.add_asset(
                     project_id=project.id,
@@ -165,7 +170,12 @@ class WorkflowJobHandlers:
             for image in result.images:
                 image_content, content_type = decode_data_url(image.data_url)
                 filename = safe_filename(image.filename, "profile-image")
-                storage_key = f"projects/{project.id}/profile-images/{uuid.uuid4().hex}-{filename}"
+                storage_key = project_asset_key(
+                    project.owner_id,
+                    project.id,
+                    "profile-images",
+                    f"{uuid.uuid4().hex}-{filename}",
+                )
                 await self._asset_store.put(storage_key, image_content, content_type)
                 record = await repository.add_asset(
                     project_id=project.id,
@@ -222,7 +232,12 @@ class WorkflowJobHandlers:
             for ordinal, mockup in enumerate(generated.mockups, start=1):
                 content = mockup.html.encode("utf-8")
                 filename = f"mockup-{generation}-{ordinal}.html"
-                storage_key = f"projects/{project.id}/mockups/{uuid.uuid4().hex}-{filename}"
+                storage_key = project_asset_key(
+                    project.owner_id,
+                    project.id,
+                    "mockups",
+                    f"{uuid.uuid4().hex}-{filename}",
+                )
                 await self._asset_store.put(storage_key, content, "text/html; charset=utf-8")
                 asset = await repository.add_asset(
                     project_id=project.id,

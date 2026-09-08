@@ -5,7 +5,12 @@ import json
 import uuid
 from collections.abc import Sequence
 
-from launchkit.assets import AssetBlobStore, validate_brand_upload, validate_profile_upload
+from launchkit.assets import (
+    AssetBlobStore,
+    project_asset_key,
+    validate_brand_upload,
+    validate_profile_upload,
+)
 from launchkit.core.config import Settings
 from launchkit.core.exceptions import ConfigurationError, DomainError
 from launchkit.persistence.models import AssetRecord, MockupRecord, OperationRecord, ProjectRecord
@@ -47,7 +52,12 @@ class WorkflowService:
         if self._settings.openrouter_api_key is None:
             raise ConfigurationError("OpenRouter is required for profile extraction")
         digest = hashlib.sha256(upload.content).hexdigest()
-        storage_key = f"projects/{project_id}/profiles/{uuid.uuid4().hex}-{upload.filename}"
+        storage_key = project_asset_key(
+            self._owner_id,
+            project_id,
+            "profiles",
+            f"{uuid.uuid4().hex}-{upload.filename}",
+        )
         await self._asset_store.put(storage_key, upload.content, upload.content_type)
         asset = await self._repository.add_asset(
             project_id=project_id,
@@ -147,7 +157,12 @@ class WorkflowService:
                     break
 
         folder = "logos" if kind == "logo" else "profiles"
-        storage_key = f"projects/{project_id}/{folder}/{uuid.uuid4().hex}-{upload.filename}"
+        storage_key = project_asset_key(
+            self._owner_id,
+            project_id,
+            folder,
+            f"{uuid.uuid4().hex}-{upload.filename}",
+        )
         await self._asset_store.put(storage_key, upload.content, upload.content_type)
         asset_kind = "profile_image" if kind == "logo" else "profile_source"
         label = "logo" if kind == "logo" else "Brand document"

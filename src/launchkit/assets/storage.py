@@ -1,13 +1,17 @@
 """Local and S3 implementations for project-owned binary artifacts."""
 
+from __future__ import annotations
+
 import asyncio
+import os
+import re
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Protocol, cast
 
-import boto3  # type: ignore[import-untyped]
-
 from launchkit.core.config import Settings
+
+_OWNER_SEGMENT = re.compile(r"[^A-Za-z0-9._-]+")
 
 
 class AssetBlobStore(Protocol):
@@ -21,6 +25,36 @@ class AssetBlobStore(Protocol):
 class ReadableBody(Protocol):
     def read(self) -> bytes:
         """Read bytes from an SDK response body."""
+
+
+def project_asset_key(owner_id: str, project_id: str, *parts: str) -> str:
+    """Build a tenant-scoped asset key: ``{owner}/projects/{project_id}/...``.
+
+    Full S3 object key is ``{LAUNCHKIT_S3_ASSET_PREFIX}/{owner}/projects/...``.
+    ``owner_id`` is the IC user subject (stable tenant partition). Put a shared
+    org/licence segment in ``LAUNCHKIT_S3_ASSET_PREFIX`` when needed, e.g.
+    ``uat/LIC-12345/assets/``.
+    """
+
+    owner = _OWNER_SEGMENT.sub("-", (owner_id or "").strip()).strip("-._")[:128] or "owner"
+    return "/".join((owner, "projects", project_id, *parts))
+
+
+def load_dotenv_file(path: Path | None = None) -> None:
+    """Load ``.env`` into ``os.environ`` for keys boto3 expects (AWS_*), without overriding."""
+
+    env_path = path or Path(".env")
+    if not env_path.is_file():
+        return
+    for raw in env_path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if key and key not in os.environ:
+            os.environ[key] = value
 
 
 class LocalAssetBlobStore:
@@ -40,7 +74,18 @@ class LocalAssetBlobStore:
         await asyncio.to_thread(write)
 
     async def get(self, key: str) -> bytes:
-        return await asyncio.to_thread(self._path(key).read_bytes)
+        path = self._path(key)
+
+        def read() -> bytes:
+            try:
+                return path.read_bytes()
+            except FileNotFoundError as exc:
+                raise FileNotFoundError(
+                    f"Uploaded asset is missing from worker storage ({key}). "
+                    "API and worker must share local_data (or use S3)."
+                ) from exc
+
+        return await asyncio.to_thread(read)
 
     def _path(self, key: str) -> Path:
         path = (self._base_dir / key).resolve()
@@ -76,7 +121,29 @@ class S3AssetBlobStore:
 
 
 def create_asset_store(settings: Settings) -> AssetBlobStore:
-    if settings.s3_bucket:
-        client = boto3.client("s3", region_name=settings.aws_region)
-        return S3AssetBlobStore(client, bucket=settings.s3_bucket, prefix=settings.s3_asset_prefix)
-    return LocalAssetBlobStore(settings.local_data_dir / "assets")
+    """Create local or S3 storage.
+
+    boto3 is imported lazily *after* ``use_system_certificates()`` so truststore's
+    SSL patch does not recurse with botocore's urllib3 SSLContext setup.
+    """
+
+    if not settings.s3_bucket:
+        return LocalAssetBlobStore(settings.local_data_dir / "assets")
+
+    load_dotenv_file()
+    import boto3  # noqa: PLC0415 — must follow truststore.inject_into_ssl()
+
+    client_kwargs: dict[str, Any] = {"region_name": settings.aws_region}
+    access_key = os.getenv("AWS_ACCESS_KEY_ID")
+    secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
+    if access_key and secret_key:
+        client_kwargs["aws_access_key_id"] = access_key
+        client_kwargs["aws_secret_access_key"] = secret_key
+    session_token = os.getenv("AWS_SESSION_TOKEN")
+    if session_token:
+        client_kwargs["aws_session_token"] = session_token
+
+    client = boto3.client("s3", **client_kwargs)
+    return S3AssetBlobStore(
+        client, bucket=settings.s3_bucket, prefix=settings.s3_asset_prefix
+    )

@@ -1,6 +1,7 @@
-"""Print recent profile.extract job errors for debugging."""
+"""Print recent failed job errors for debugging (local or UAT DB)."""
 
 import asyncio
+import sys
 
 from sqlalchemy import text
 
@@ -8,25 +9,40 @@ from launchkit.core.config import get_settings
 from launchkit.persistence import create_database
 
 
-async def main() -> None:
+async def main(kind: str | None = None) -> None:
     settings = get_settings()
     database = create_database(settings)
     async with database.sessions() as session:
-        rows = (
-            await session.execute(
-                text(
-                    "select id, status, left(last_error, 800) as err, updated_at "
-                    "from jobs where kind='profile.extract' "
-                    "order by updated_at desc limit 3"
+        if kind:
+            rows = (
+                await session.execute(
+                    text(
+                        "select id, kind, status, left(last_error, 800) as err, updated_at "
+                        "from jobs where kind = :kind and status = 'failed' "
+                        "order by updated_at desc limit 10"
+                    ),
+                    {"kind": kind},
                 )
-            )
-        ).all()
+            ).all()
+        else:
+            rows = (
+                await session.execute(
+                    text(
+                        "select id, kind, status, left(last_error, 800) as err, updated_at "
+                        "from jobs where status = 'failed' "
+                        "order by updated_at desc limit 15"
+                    )
+                )
+            ).all()
+        if not rows:
+            print("No failed jobs found.")
         for row in rows:
             print("----")
-            print("job:", row[0], "status:", row[1], "at:", row[3])
-            print("error:", row[2])
+            print("job:", row[0], "kind:", row[1], "status:", row[2], "at:", row[4])
+            print("error:", row[3])
     await database.close()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    filter_kind = sys.argv[1] if len(sys.argv) > 1 else None
+    asyncio.run(main(filter_kind))

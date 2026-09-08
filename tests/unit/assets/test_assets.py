@@ -117,6 +117,15 @@ def test_profile_upload_rejects_invalid_content(
         validate_profile_upload(filename, content_type, content, max_bytes=max_bytes)
 
 
+def test_project_asset_key_scopes_under_owner() -> None:
+    from launchkit.assets.storage import project_asset_key
+
+    assert project_asset_key("user/abc!", "prj_1", "logos", "a.png") == (
+        "user-abc/projects/prj_1/logos/a.png"
+    )
+    assert project_asset_key("", "prj_1", "x") == "owner/projects/prj_1/x"
+
+
 def test_local_asset_store_round_trip_and_traversal_protection(tmp_path: Path) -> None:
     store = LocalAssetBlobStore(tmp_path)
 
@@ -127,6 +136,13 @@ def test_local_asset_store_round_trip_and_traversal_protection(tmp_path: Path) -
     assert asyncio.run(scenario()) == b"content"
     with pytest.raises(ValueError, match="escapes"):
         asyncio.run(store.get("../outside.txt"))
+
+
+def test_local_asset_store_missing_key_explains_shared_storage(tmp_path: Path) -> None:
+    store = LocalAssetBlobStore(tmp_path)
+
+    with pytest.raises(FileNotFoundError, match="share local_data"):
+        asyncio.run(store.get("projects/missing/file.pdf"))
 
 
 def test_filename_normalization_removes_paths_headers_and_unicode() -> None:

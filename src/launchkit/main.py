@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from launchkit.api import api_router
 from launchkit.api.errors import register_error_handlers
 from launchkit.api.middleware import RequestIdMiddleware
-from launchkit.assets import AssetBlobStore, create_asset_store
+from launchkit.assets import AssetBlobStore, create_asset_store, load_dotenv_file
 from launchkit.auth import auth_router
 from launchkit.builds.handlers import create_build_job_handlers
 from launchkit.core.config import Settings, get_settings
@@ -64,6 +64,8 @@ def create_app(
 ) -> FastAPI:
     """Compose transport dependencies without requiring optional provider credentials."""
 
+    # AWS_* from .env must be in os.environ for boto3; truststore must run before boto3 import.
+    load_dotenv_file()
     resolved_settings = settings or get_settings()
     configure_logging(resolved_settings)
     use_system_certificates()

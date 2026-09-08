@@ -40,6 +40,8 @@ services:
     environment: *launchkit-environment
     ports:
       - "8000:8000"
+    volumes:
+      - launchkit_data:/app/local_data
 
   worker:
     build: .
@@ -49,6 +51,9 @@ services:
         condition: service_completed_successfully
     env_file: *launchkit-env-files
     environment: *launchkit-environment
+    volumes:
+      - launchkit_data:/app/local_data
 
 volumes:
   launchkit_postgres:
+  launchkit_data:
