@@ -24,10 +24,13 @@ class ProjectService:
         repository: PersistenceRepository,
         owner_id: str,
         settings: Settings | None = None,
+        *,
+        license_number: str | None = None,
     ) -> None:
         self._repository = repository
         self._owner_id = owner_id
         self._settings = settings or Settings()
+        self._license_number = license_number
 
     async def create(self, draft: ProjectDraft) -> ProjectView:
         user = await self._repository.get_user(self._owner_id)
@@ -35,6 +38,7 @@ class ProjectService:
             self._owner_id,
             user,
             unlimited_licenses=self._settings.unlimited_test_license_numbers,
+            license_number=self._license_number,
         )
 
         # One website per user: soft-reset an unfinished draft, or block after a generation.

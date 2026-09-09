@@ -41,12 +41,14 @@ class BuildService:
         asset_store: AssetBlobStore,
         *,
         v0_status: V0StatusLookup | None = None,
+        license_number: str | None = None,
     ) -> None:
         self._repository = repository
         self._owner_id = owner_id
         self._settings = settings
         self._asset_store = asset_store
         self._v0_status = v0_status
+        self._license_number = license_number
 
     async def start(self, project_id: str, request: BuildCreate, idempotency_key: str) -> BuildView:
         project = await self._repository.get_project(project_id, self._owner_id)
@@ -99,6 +101,7 @@ class BuildService:
             self._owner_id,
             user,
             unlimited_licenses=self._settings.unlimited_test_license_numbers,
+            license_number=self._license_number,
         ):
             if await self._repository.count_owner_website_builds(self._owner_id) >= 1:
                 raise GenerationQuotaExceededError()

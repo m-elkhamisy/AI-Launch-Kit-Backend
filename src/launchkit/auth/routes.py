@@ -14,6 +14,7 @@ from launchkit.api.auth import (
     AuthTokenResponse,
     authenticate_token,
     mint_token,
+    read_token_license,
 )
 from launchkit.auth.client import AuthServiceClient
 from launchkit.auth.cookies import (
@@ -25,6 +26,7 @@ from launchkit.auth.cookies import (
 )
 from launchkit.auth.models import AuthMeResponse, AuthMessageResponse, AuthUser
 from launchkit.auth.pkce import code_challenge_s256, generate_code_verifier
+from launchkit.builds.quota import extract_license_number
 from launchkit.core.config import Settings, get_settings
 from launchkit.core.exceptions import ConfigurationError, ProviderError
 from launchkit.persistence import PersistenceRepository
@@ -112,7 +114,12 @@ def _api_subject(user: AuthUser) -> str | None:
 
 
 async def _record_user_login(
-    request: Request, user: AuthUser, subject: str, profile: dict[str, Any]
+    request: Request,
+    user: AuthUser,
+    subject: str,
+    profile: dict[str, Any],
+    *,
+    license_number: str | None = None,
 ) -> None:
     """Best-effort persistence of the IC login; never blocks the login flow."""
 
@@ -122,6 +129,9 @@ async def _record_user_login(
     full_name = user.full_name or " ".join(
         part for part in (user.first_name, user.last_name) if part
     )
+    stored_profile = dict(profile)
+    if license_number:
+        stored_profile["licenseNumber"] = license_number
     try:
         async with database.session() as session:
             repository = PersistenceRepository(session)
@@ -133,7 +143,7 @@ async def _record_user_login(
                 company_name=user.company_name,
                 role=user.role,
                 pool=user.pool,
-                profile=profile,
+                profile=stored_profile,
             )
             await repository.commit()
     except Exception:
@@ -231,7 +241,8 @@ async def callback(
         user = AuthUser.model_validate(profile)
         subject = _api_subject(user)
         if subject:
-            api_token = mint_token(settings, subject)
+            license_number = extract_license_number(profile, access_token=access_token)
+            api_token = mint_token(settings, subject, license_number=license_number)
             set_cookie(
                 redirect,
                 name=API_TOKEN_COOKIE,
@@ -239,7 +250,18 @@ async def callback(
                 max_age=api_token.expires_in_seconds,
                 environment=settings.environment,
             )
-            await _record_user_login(request, user, subject, dict(profile))
+            await _record_user_login(
+                request,
+                user,
+                subject,
+                dict(profile),
+                license_number=license_number,
+            )
+            logger.info(
+                "auth_api_token_bridged",
+                subject=subject,
+                license_present=bool(license_number),
+            )
     except Exception:
         # Login itself succeeded; the wizard will just require a re-login for /api/v1.
         logger.warning("auth_api_token_bridge_failed", exc_info=True)
@@ -308,7 +330,18 @@ async def api_token(
     if not cookie_token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
     subject = authenticate_token(settings, cookie_token)
-    fresh = mint_token(settings, subject)
+    license_number = read_token_license(settings, cookie_token)
+    if not license_number:
+        database = getattr(request.app.state, "database", None)
+        if database is not None:
+            try:
+                async with database.session() as session:
+                    user = await PersistenceRepository(session).get_user(subject)
+                    if user is not None and isinstance(user.profile, dict):
+                        license_number = extract_license_number(user.profile)
+            except Exception:
+                logger.warning("auth_token_license_lookup_failed", subject=subject, exc_info=True)
+    fresh = mint_token(settings, subject, license_number=license_number)
     set_cookie(
         response,
         name=API_TOKEN_COOKIE,

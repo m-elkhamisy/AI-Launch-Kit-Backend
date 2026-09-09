@@ -9,7 +9,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from launchkit.adapters.v0 import V0Adapter
-from launchkit.api.auth import API_TOKEN_COOKIE, authenticate_token
+from launchkit.api.auth import API_TOKEN_COOKIE, authenticate_token, read_token_license
 from launchkit.assets import AssetBlobStore
 from launchkit.builds import BuildService
 from launchkit.builds.webhooks import V0WebhookService
@@ -49,6 +49,28 @@ def get_current_user_id(
     raise AuthenticationError("Authentication is required.")
 
 
+def get_current_license_number(
+    request: Request,
+    settings: Annotated[Settings, Depends(get_request_settings)],
+    credentials: Annotated[
+        HTTPAuthorizationCredentials | None,
+        Depends(bearer_scheme),
+    ],
+) -> str | None:
+    """Optional IC license claim carried on the Launch Kit API JWT."""
+
+    if settings.auth_mode == "testing":
+        return None
+    token: str | None = None
+    if credentials is not None and credentials.scheme.lower() == "bearer":
+        token = credentials.credentials
+    else:
+        token = request.cookies.get(API_TOKEN_COOKIE)
+    if not token:
+        return None
+    return read_token_license(settings, token)
+
+
 async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
     database: Database = request.app.state.database
     async with database.session() as session:
@@ -59,8 +81,14 @@ def get_project_service(
     session: Annotated[AsyncSession, Depends(get_session)],
     owner_id: Annotated[str, Depends(get_current_user_id)],
     settings: Annotated[Settings, Depends(get_request_settings)],
+    license_number: Annotated[str | None, Depends(get_current_license_number)],
 ) -> ProjectService:
-    return ProjectService(PersistenceRepository(session), owner_id, settings)
+    return ProjectService(
+        PersistenceRepository(session),
+        owner_id,
+        settings,
+        license_number=license_number,
+    )
 
 
 def get_workflow_service(
@@ -78,6 +106,7 @@ def get_build_service(
     session: Annotated[AsyncSession, Depends(get_session)],
     owner_id: Annotated[str, Depends(get_current_user_id)],
     settings: Annotated[Settings, Depends(get_request_settings)],
+    license_number: Annotated[str | None, Depends(get_current_license_number)],
 ) -> BuildService:
     store = cast(AssetBlobStore, request.app.state.asset_store)
     v0_key = settings.v0_api_key.get_secret_value() if settings.v0_api_key else ""
@@ -98,6 +127,7 @@ def get_build_service(
         settings,
         store,
         v0_status=v0_status if v0_key else None,
+        license_number=license_number,
     )
 
 

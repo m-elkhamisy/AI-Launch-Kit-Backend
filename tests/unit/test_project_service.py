@@ -113,6 +113,7 @@ def test_create_allows_extra_projects_for_unlimited_test_license() -> None:
         cast(Any, repository),
         "cognito-1",
         Settings(environment="test", unlimited_test_licenses="07010266"),
+        license_number="07010266",
     )
     first = asyncio.run(service.create(ProjectDraft()))
     second = asyncio.run(service.create(ProjectDraft()))

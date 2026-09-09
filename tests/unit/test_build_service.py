@@ -222,6 +222,7 @@ def test_start_allows_extra_builds_for_unlimited_test_license() -> None:
             "owner-1",
             Settings(environment="test", v0_api_key="v0", unlimited_test_licenses="07010266"),
             cast(AssetBlobStore, BlobStoreStub()),
+            license_number="07010266",
         ).start("project-1", BuildCreate(), "extra-key")
     )
     assert created.id == "build-1"
