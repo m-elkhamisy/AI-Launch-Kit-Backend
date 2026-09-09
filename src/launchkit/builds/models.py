@@ -39,6 +39,12 @@ class BuildView(AliasedModel):
     completed_at: datetime | None
 
 
+class BuildPreviewView(AliasedModel):
+    """Fresh provider demo URL (includes short-lived preview token query params)."""
+
+    url: str
+
+
 class BuildEventView(AliasedModel):
     id: int
     status: str

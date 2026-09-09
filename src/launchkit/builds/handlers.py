@@ -6,7 +6,6 @@ import uuid
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Protocol
-from urllib.parse import urlparse
 
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,6 +15,7 @@ from launchkit.adapters.openrouter import OpenRouterAdapter
 from launchkit.adapters.pexels import PexelsAdapter
 from launchkit.adapters.v0 import V0Adapter
 from launchkit.assets import AssetBlobStore, project_asset_key, safe_filename
+from launchkit.builds.service import safe_provider_url
 from launchkit.builds.state import TERMINAL_BUILD_STATUSES, transition_build
 from launchkit.core.config import Settings
 from launchkit.core.exceptions import ConfigurationError, ProviderError
@@ -418,10 +418,3 @@ async def uploaded_images(
             )
         )
     return images
-
-
-def safe_provider_url(value: str | None) -> str | None:
-    if value is None:
-        return None
-    parsed = urlparse(value)
-    return value if parsed.scheme == "https" and parsed.netloc else None

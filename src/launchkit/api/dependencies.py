@@ -3,10 +3,12 @@
 from collections.abc import AsyncIterator
 from typing import Annotated, cast
 
+import httpx
 from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from launchkit.adapters.v0 import V0Adapter
 from launchkit.api.auth import API_TOKEN_COOKIE, authenticate_token
 from launchkit.assets import AssetBlobStore
 from launchkit.builds import BuildService
@@ -14,6 +16,7 @@ from launchkit.builds.webhooks import V0WebhookService
 from launchkit.core.config import Settings
 from launchkit.deployment.service import DeploymentService
 from launchkit.deployment.webhooks import VercelWebhookService
+from launchkit.generation.models import V0GenerationResult
 from launchkit.persistence import Database, PersistenceRepository
 from launchkit.projects import ProjectService
 from launchkit.workflows import WorkflowService
@@ -76,7 +79,25 @@ def get_build_service(
     settings: Annotated[Settings, Depends(get_request_settings)],
 ) -> BuildService:
     store = cast(AssetBlobStore, request.app.state.asset_store)
-    return BuildService(PersistenceRepository(session), owner_id, settings, store)
+    v0_key = settings.v0_api_key.get_secret_value() if settings.v0_api_key else ""
+
+    async def v0_status(chat_id: str) -> V0GenerationResult:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            adapter = V0Adapter(
+                client,
+                api_key=v0_key,
+                base_url=settings.v0_base_url,
+                model_id=settings.v0_model,
+            )
+            return await adapter.get_status(chat_id)
+
+    return BuildService(
+        PersistenceRepository(session),
+        owner_id,
+        settings,
+        store,
+        v0_status=v0_status if v0_key else None,
+    )
 
 
 def get_v0_webhook_service(

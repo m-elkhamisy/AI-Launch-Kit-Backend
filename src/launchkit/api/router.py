@@ -28,7 +28,7 @@ from launchkit.api.dependencies import (
 )
 from launchkit.api.schemas import HealthResponse, WizardCatalogResponse
 from launchkit.assets import BRAND_ASSET_MAX_BYTES
-from launchkit.builds import BuildCreate, BuildView
+from launchkit.builds import BuildCreate, BuildPreviewView, BuildView
 from launchkit.builds.sse import stream_build_events
 from launchkit.builds.webhooks import WebhookReceipt
 from launchkit.deployment import DeploymentCreate, DeploymentView
@@ -311,6 +311,15 @@ async def download_build(build_id: str, service: BuildServiceDependency) -> Stre
             "X-Content-Type-Options": "nosniff",
         },
     )
+
+
+@api_router.get(
+    "/builds/{build_id}/preview",
+    response_model=BuildPreviewView,
+    tags=["builds"],
+)
+async def get_build_preview(build_id: str, service: BuildServiceDependency) -> BuildPreviewView:
+    return await service.preview(build_id)
 
 
 @api_router.post(

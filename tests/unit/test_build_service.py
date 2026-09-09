@@ -40,6 +40,7 @@ class RepositoryStub:
         self.owner_build_count = 0
         self.idempotency: Any | None = None
         self.asset: AssetRecord | None = None
+        self.provider_ref: Any | None = None
         self.events: list[dict[str, Any]] = []
         self.jobs: list[tuple[str, dict[str, str]]] = []
         self.commits = 0
@@ -101,6 +102,10 @@ class RepositoryStub:
         del asset_id, owner_id
         return self.asset
 
+    async def get_provider_reference(self, **kwargs: str) -> Any | None:
+        del kwargs
+        return self.provider_ref
+
 
 class BlobStoreStub:
     async def get(self, storage_key: str) -> bytes:
@@ -108,12 +113,18 @@ class BlobStoreStub:
         return b"PK-archive"
 
 
-def service(repository: RepositoryStub, *, configured: bool = True) -> BuildService:
+def service(
+    repository: RepositoryStub,
+    *,
+    configured: bool = True,
+    v0_status: Any | None = None,
+) -> BuildService:
     return BuildService(
         cast(PersistenceRepository, repository),
         "owner-1",
         Settings(environment="test", v0_api_key="v0" if configured else None),
         cast(AssetBlobStore, BlobStoreStub()),
+        v0_status=v0_status,
     )
 
 
@@ -233,3 +244,41 @@ def test_get_and_download_enforce_ownership_and_archive_readiness() -> None:
     content, filename = asyncio.run(build_service.download("build-1"))
     assert content == b"PK-archive"
     assert filename == "Northstar site.zip"
+
+
+def test_preview_refreshes_stale_demo_url_from_v0() -> None:
+    from launchkit.generation.models import PipelineStatus, V0GenerationResult
+
+    repository = RepositoryStub()
+    start(repository)
+    assert repository.build is not None
+    repository.build.status = "completed"
+    repository.build.preview_url = "https://demo-old.vusercontent.net/"
+    repository.provider_ref = SimpleNamespace(reference_value="chat-private")
+
+    async def v0_status(chat_id: str) -> V0GenerationResult:
+        assert chat_id == "chat-private"
+        return V0GenerationResult(
+            chat_id=chat_id,
+            web_url="https://v0.app/chat/chat-private",
+            demo_url="https://demo-fresh.vusercontent.net/?__v0_token=abc",
+            status=PipelineStatus.COMPLETED,
+            file_count=1,
+        )
+
+    preview = asyncio.run(service(repository, v0_status=v0_status).preview("build-1"))
+    assert preview.url == "https://demo-fresh.vusercontent.net/?__v0_token=abc"
+    assert repository.build.preview_url == preview.url
+    assert repository.commits == 2  # start + preview refresh
+
+
+def test_preview_falls_back_to_stored_url_without_chat_reference() -> None:
+    repository = RepositoryStub()
+    start(repository)
+    assert repository.build is not None
+    repository.build.status = "completed"
+    repository.build.preview_url = "https://demo-stored.vusercontent.net/?__v0_token=old"
+    repository.provider_ref = None
+
+    preview = asyncio.run(service(repository).preview("build-1"))
+    assert preview.url == "https://demo-stored.vusercontent.net/?__v0_token=old"

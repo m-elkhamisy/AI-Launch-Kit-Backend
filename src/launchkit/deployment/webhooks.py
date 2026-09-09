@@ -7,7 +7,7 @@ from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Any
 
-from launchkit.builds.handlers import safe_provider_url
+from launchkit.builds.service import safe_provider_url
 from launchkit.builds.webhooks import delivery_identifier
 from launchkit.core.config import Settings
 from launchkit.core.exceptions import ConfigurationError, DomainError

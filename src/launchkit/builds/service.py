@@ -2,14 +2,19 @@
 
 import hashlib
 import json
+from collections.abc import Awaitable, Callable
+from urllib.parse import urlparse
 
 from launchkit.assets import AssetBlobStore, safe_filename
-from launchkit.builds.models import BuildCreate, BuildEventView, BuildView
+from launchkit.builds.models import BuildCreate, BuildEventView, BuildPreviewView, BuildView
 from launchkit.builds.state import ACTIVE_BUILD_STATUSES
 from launchkit.core.config import Settings
 from launchkit.core.exceptions import ConfigurationError, DomainError
+from launchkit.generation.models import V0GenerationResult
 from launchkit.persistence.models import BuildRecord, StatusEventRecord
 from launchkit.persistence.repositories import PersistenceRepository
+
+V0StatusLookup = Callable[[str], Awaitable[V0GenerationResult]]
 
 
 class BuildNotFoundError(DomainError):
@@ -33,11 +38,14 @@ class BuildService:
         owner_id: str,
         settings: Settings,
         asset_store: AssetBlobStore,
+        *,
+        v0_status: V0StatusLookup | None = None,
     ) -> None:
         self._repository = repository
         self._owner_id = owner_id
         self._settings = settings
         self._asset_store = asset_store
+        self._v0_status = v0_status
 
     async def start(self, project_id: str, request: BuildCreate, idempotency_key: str) -> BuildView:
         project = await self._repository.get_project(project_id, self._owner_id)
@@ -127,6 +135,54 @@ class BuildService:
         return await self._asset_store.get(asset.storage_key), safe_filename(
             asset.filename, "website.zip"
         )
+
+    async def preview(self, build_id: str) -> BuildPreviewView:
+        """Return a fresh v0 demo URL.
+
+        Stored ``preview_url`` values go stale: v0 rotates sandbox hosts and
+        attaches short-lived ``__v0_token`` query params. Opening the bare host
+        (or an expired token) shows a broken/404 shell even though generation
+        succeeded.
+        """
+        build = await self._repository.get_build(build_id, self._owner_id)
+        if build is None:
+            raise BuildNotFoundError("Build not found")
+        if build.status != "completed":
+            raise DomainError("The website preview is not ready yet.")
+
+        chat = await self._repository.get_provider_reference(
+            resource_type="build",
+            resource_id=build.id,
+            provider="v0",
+            reference_type="chat_id",
+        )
+        if chat is None:
+            url = safe_provider_url(build.preview_url)
+            if url is None:
+                raise DomainError("No preview is available for this website yet.")
+            return BuildPreviewView(url=url)
+
+        if self._v0_status is None:
+            raise ConfigurationError("v0 is required to refresh the website preview")
+
+        result = await self._v0_status(chat.reference_value)
+        url = safe_provider_url(result.demo_url)
+        if url is None:
+            url = safe_provider_url(build.preview_url)
+        if url is None:
+            raise DomainError("v0 did not return a live preview URL for this website.")
+
+        if build.preview_url != url:
+            build.preview_url = url
+            await self._repository.commit()
+        return BuildPreviewView(url=url)
+
+
+def safe_provider_url(value: str | None) -> str | None:
+    if value is None:
+        return None
+    parsed = urlparse(value)
+    return value if parsed.scheme == "https" and parsed.netloc else None
 
 
 def build_view(record: BuildRecord) -> BuildView:
