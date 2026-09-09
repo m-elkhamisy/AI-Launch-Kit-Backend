@@ -77,6 +77,8 @@ class Settings(BaseSettings):
     claim_return_url: str = "http://localhost:5173/"
     # Comma-separated IC license numbers that may create/generate unlimited websites (testing).
     unlimited_test_licenses: str = ""
+    # Turns the one-website-per-user limit off for everyone (testing environments only).
+    disable_generation_quota: bool = False
 
     @property
     def unlimited_test_license_numbers(self) -> frozenset[str]:

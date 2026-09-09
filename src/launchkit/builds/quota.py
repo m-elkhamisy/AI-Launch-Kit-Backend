@@ -77,9 +77,12 @@ def allows_unlimited_website_generation(
     *,
     unlimited_licenses: frozenset[str],
     license_number: str | None = None,
+    quota_disabled: bool = False,
 ) -> bool:
     """Return True when this owner may create/generate more than one website."""
 
+    if quota_disabled:
+        return True
     if not unlimited_licenses:
         return False
     for candidate in (license_number, owner_id):

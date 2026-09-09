@@ -7,9 +7,21 @@ from typing import Any, cast
 import pytest
 
 from launchkit.builds.service import GenerationQuotaExceededError
+from launchkit.core.config import Settings
 from launchkit.persistence.models import ProjectRecord
 from launchkit.projects.models import ProjectDraft
 from launchkit.projects.service import ProjectService
+
+
+def quota_enforced_settings() -> Settings:
+    """Pin the quota knobs: ``load_dotenv_file`` leaks a developer's .env into os.environ."""
+
+    return Settings(
+        environment="test",
+        unlimited_test_licenses="",
+        disable_generation_quota=False,
+        _env_file=None,
+    )
 
 
 class RepositoryStub:
@@ -73,7 +85,7 @@ class RepositoryStub:
 
 def test_create_reuses_project_slot_but_resets_the_draft() -> None:
     repository = RepositoryStub()
-    service = ProjectService(cast(Any, repository), "owner-1")
+    service = ProjectService(cast(Any, repository), "owner-1", quota_enforced_settings())
     draft = ProjectDraft()
     first = asyncio.run(service.create(draft))
     repository.projects[0].business = {**repository.projects[0].business, "companyName": "Old Co"}
@@ -88,15 +100,13 @@ def test_create_reuses_project_slot_but_resets_the_draft() -> None:
 def test_create_blocks_after_website_generation() -> None:
     repository = RepositoryStub()
     repository.owner_build_count = 1
-    service = ProjectService(cast(Any, repository), "owner-1")
+    service = ProjectService(cast(Any, repository), "owner-1", quota_enforced_settings())
     with pytest.raises(GenerationQuotaExceededError, match="need more credits"):
         asyncio.run(service.create(ProjectDraft()))
 
 
 def test_create_allows_extra_projects_for_unlimited_test_license() -> None:
     from types import SimpleNamespace
-
-    from launchkit.core.config import Settings
 
     repository = RepositoryStub()
     repository.owner_build_count = 1
@@ -112,7 +122,12 @@ def test_create_allows_extra_projects_for_unlimited_test_license() -> None:
     service = ProjectService(
         cast(Any, repository),
         "cognito-1",
-        Settings(environment="test", unlimited_test_licenses="07010266"),
+        Settings(
+            environment="test",
+            unlimited_test_licenses="07010266",
+            disable_generation_quota=False,
+            _env_file=None,
+        ),
         license_number="07010266",
     )
     first = asyncio.run(service.create(ProjectDraft()))

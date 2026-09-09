@@ -2,6 +2,7 @@
 
 from typing import Any
 
+import structlog
 from pydantic import BaseModel
 
 from launchkit.builds.quota import allows_unlimited_website_generation
@@ -12,6 +13,8 @@ from launchkit.persistence.models import BuildRecord, ProjectRecord
 from launchkit.persistence.repositories import PersistenceRepository
 from launchkit.projects.models import ProjectDraft, ProjectPatch, ProjectSummaryView, ProjectView
 from launchkit.workflows.service import assets_view, mockups_view
+
+logger = structlog.get_logger(__name__)
 
 
 class ProjectNotFoundError(DomainError):
@@ -39,6 +42,15 @@ class ProjectService:
             user,
             unlimited_licenses=self._settings.unlimited_test_license_numbers,
             license_number=self._license_number,
+            quota_disabled=self._settings.disable_generation_quota,
+        )
+        logger.info(
+            "generation_quota_checked",
+            owner_id=self._owner_id,
+            license_number=self._license_number,
+            unlimited=unlimited,
+            quota_disabled=self._settings.disable_generation_quota,
+            configured_licenses=sorted(self._settings.unlimited_test_license_numbers),
         )
 
         # One website per user: soft-reset an unfinished draft, or block after a generation.

@@ -5,6 +5,8 @@ import json
 from collections.abc import Awaitable, Callable
 from urllib.parse import urlparse
 
+import structlog
+
 from launchkit.assets import AssetBlobStore, safe_filename
 from launchkit.builds.models import BuildCreate, BuildEventView, BuildPreviewView, BuildView
 from launchkit.builds.quota import allows_unlimited_website_generation
@@ -14,6 +16,8 @@ from launchkit.core.exceptions import ConfigurationError, DomainError
 from launchkit.generation.models import V0GenerationResult
 from launchkit.persistence.models import BuildRecord, StatusEventRecord
 from launchkit.persistence.repositories import PersistenceRepository
+
+logger = structlog.get_logger(__name__)
 
 V0StatusLookup = Callable[[str], Awaitable[V0GenerationResult]]
 
@@ -97,14 +101,22 @@ class BuildService:
         # Every user gets exactly one website generation (failed builds don't count),
         # unless their IC license is on the temporary unlimited test list.
         user = await self._repository.get_user(self._owner_id)
-        if not allows_unlimited_website_generation(
+        unlimited = allows_unlimited_website_generation(
             self._owner_id,
             user,
             unlimited_licenses=self._settings.unlimited_test_license_numbers,
             license_number=self._license_number,
-        ):
-            if await self._repository.count_owner_website_builds(self._owner_id) >= 1:
-                raise GenerationQuotaExceededError()
+            quota_disabled=self._settings.disable_generation_quota,
+        )
+        logger.info(
+            "generation_quota_checked",
+            owner_id=self._owner_id,
+            license_number=self._license_number,
+            unlimited=unlimited,
+            quota_disabled=self._settings.disable_generation_quota,
+        )
+        if not unlimited and await self._repository.count_owner_website_builds(self._owner_id) >= 1:
+            raise GenerationQuotaExceededError()
         build = await self._repository.add_build(project_id=project.id, provider=request.provider)
         await self._repository.add_status_event(
             resource_type="build",

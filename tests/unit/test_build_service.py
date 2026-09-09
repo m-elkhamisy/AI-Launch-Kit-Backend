@@ -127,7 +127,14 @@ def service(
     return BuildService(
         cast(PersistenceRepository, repository),
         "owner-1",
-        Settings(environment="test", v0_api_key="v0" if configured else None),
+        Settings(
+            environment="test",
+            v0_api_key="v0" if configured else None,
+            # Pinned: load_dotenv_file leaks a developer's .env into os.environ.
+            unlimited_test_licenses="",
+            disable_generation_quota=False,
+            _env_file=None,
+        ),
         cast(AssetBlobStore, BlobStoreStub()),
         v0_status=v0_status,
     )
@@ -220,7 +227,13 @@ def test_start_allows_extra_builds_for_unlimited_test_license() -> None:
         BuildService(
             cast(PersistenceRepository, repository),
             "owner-1",
-            Settings(environment="test", v0_api_key="v0", unlimited_test_licenses="07010266"),
+            Settings(
+                environment="test",
+                v0_api_key="v0",
+                unlimited_test_licenses="07010266",
+                disable_generation_quota=False,
+                _env_file=None,
+            ),
             cast(AssetBlobStore, BlobStoreStub()),
             license_number="07010266",
         ).start("project-1", BuildCreate(), "extra-key")

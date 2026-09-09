@@ -13,9 +13,26 @@ def test_settings_parses_comma_separated_licenses() -> None:
 
 def test_matches_owner_id_directly() -> None:
     licenses = frozenset({"07010266"})
-    assert allows_unlimited_website_generation("07010266", None, unlimited_licenses=licenses) is True
+    assert (
+        allows_unlimited_website_generation("07010266", None, unlimited_licenses=licenses) is True
+    )
     assert allows_unlimited_website_generation("other", None, unlimited_licenses=licenses) is False
-    assert allows_unlimited_website_generation("07010266", None, unlimited_licenses=frozenset()) is False
+    assert (
+        allows_unlimited_website_generation("07010266", None, unlimited_licenses=frozenset())
+        is False
+    )
+
+
+def test_quota_can_be_disabled_entirely() -> None:
+    assert (
+        allows_unlimited_website_generation(
+            "any-owner",
+            None,
+            unlimited_licenses=frozenset(),
+            quota_disabled=True,
+        )
+        is True
+    )
 
 
 def test_matches_license_claim_even_without_user_row() -> None:
