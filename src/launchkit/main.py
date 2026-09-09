@@ -64,11 +64,12 @@ def create_app(
 ) -> FastAPI:
     """Compose transport dependencies without requiring optional provider credentials."""
 
-    # AWS_* from .env must be in os.environ for boto3; truststore must run before boto3 import.
+    # AWS_* from .env for boto3. Never inject truststore when S3 is on — that
+    # combination RecursionErrors inside botocore SSLContext on startup.
     load_dotenv_file()
     resolved_settings = settings or get_settings()
     configure_logging(resolved_settings)
-    use_system_certificates()
+    use_system_certificates(enabled=not bool(resolved_settings.s3_bucket))
 
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:

@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Protocol, cast
 
 from launchkit.core.config import Settings
+from launchkit.core.exceptions import ConfigurationError
 
 _OWNER_SEGMENT = re.compile(r"[^A-Za-z0-9._-]+")
 
@@ -120,30 +121,45 @@ class S3AssetBlobStore:
         return f"{self._prefix}/{key}" if self._prefix else key
 
 
+def _s3_client(region: str) -> Any:
+    """Build an S3 client without triggering truststore/botocore SSL recursion.
+
+    Prefer static keys via ``boto3.Session(...)`` so botocore never constructs the
+    container-metadata credential provider (that path creates URLLib3Session and
+    blows up after ``truststore.inject_into_ssl()``).
+    """
+
+    # Imported lazily so callers can skip truststore before this runs.
+    import boto3  # noqa: PLC0415
+
+    load_dotenv_file()
+    access_key = os.getenv("AWS_ACCESS_KEY_ID")
+    secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
+    session_token = os.getenv("AWS_SESSION_TOKEN")
+    if access_key and secret_key:
+        session = boto3.Session(
+            aws_access_key_id=access_key,
+            aws_secret_access_key=secret_key,
+            aws_session_token=session_token,
+            region_name=region,
+        )
+        return session.client("s3")
+    # IAM instance role / default chain — only safe when truststore was not injected.
+    return boto3.Session(region_name=region).client("s3")
+
+
 def create_asset_store(settings: Settings) -> AssetBlobStore:
     """Create local or S3 storage.
 
-    boto3 is imported lazily *after* ``use_system_certificates()`` so truststore's
-    SSL patch does not recurse with botocore's urllib3 SSLContext setup.
+    Callers must skip ``use_system_certificates()`` when ``settings.s3_bucket`` is set,
+    or pass static ``AWS_ACCESS_KEY_ID`` / ``AWS_SECRET_ACCESS_KEY``.
     """
 
     if not settings.s3_bucket:
         return LocalAssetBlobStore(settings.local_data_dir / "assets")
-
-    load_dotenv_file()
-    import boto3  # noqa: PLC0415 — must follow truststore.inject_into_ssl()
-
-    client_kwargs: dict[str, Any] = {"region_name": settings.aws_region}
-    access_key = os.getenv("AWS_ACCESS_KEY_ID")
-    secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
-    if access_key and secret_key:
-        client_kwargs["aws_access_key_id"] = access_key
-        client_kwargs["aws_secret_access_key"] = secret_key
-    session_token = os.getenv("AWS_SESSION_TOKEN")
-    if session_token:
-        client_kwargs["aws_session_token"] = session_token
-
-    client = boto3.client("s3", **client_kwargs)
+    if not settings.aws_region:
+        raise ConfigurationError("LAUNCHKIT_AWS_REGION is required when S3 is enabled")
+    client = _s3_client(settings.aws_region)
     return S3AssetBlobStore(
         client, bucket=settings.s3_bucket, prefix=settings.s3_asset_prefix
     )

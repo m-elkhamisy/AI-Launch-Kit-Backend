@@ -92,7 +92,7 @@ async def _main(once: bool) -> None:
     load_dotenv_file()
     settings = get_settings()
     configure_logging(settings)
-    use_system_certificates()
+    use_system_certificates(enabled=not bool(settings.s3_bucket))
     asset_store = create_asset_store(settings)
     timeout = httpx.Timeout(120, connect=10)
     async with httpx.AsyncClient(timeout=timeout) as client:
