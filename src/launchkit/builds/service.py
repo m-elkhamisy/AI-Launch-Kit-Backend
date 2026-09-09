@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 
 from launchkit.assets import AssetBlobStore, safe_filename
 from launchkit.builds.models import BuildCreate, BuildEventView, BuildPreviewView, BuildView
+from launchkit.builds.quota import allows_unlimited_website_generation
 from launchkit.builds.state import ACTIVE_BUILD_STATUSES
 from launchkit.core.config import Settings
 from launchkit.core.exceptions import ConfigurationError, DomainError
@@ -91,9 +92,16 @@ class BuildService:
 
         if await self._repository.find_active_build(project_id) is not None:
             raise DomainError("A build is already active for this project.")
-        # Every user gets exactly one website generation (failed builds don't count).
-        if await self._repository.count_owner_website_builds(self._owner_id) >= 1:
-            raise GenerationQuotaExceededError()
+        # Every user gets exactly one website generation (failed builds don't count),
+        # unless their IC license is on the temporary unlimited test list.
+        user = await self._repository.get_user(self._owner_id)
+        if not allows_unlimited_website_generation(
+            self._owner_id,
+            user,
+            unlimited_licenses=self._settings.unlimited_test_license_numbers,
+        ):
+            if await self._repository.count_owner_website_builds(self._owner_id) >= 1:
+                raise GenerationQuotaExceededError()
         build = await self._repository.add_build(project_id=project.id, provider=request.provider)
         await self._repository.add_status_event(
             resource_type="build",

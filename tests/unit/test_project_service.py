@@ -17,6 +17,11 @@ class RepositoryStub:
         self.projects: list[ProjectRecord] = []
         self.owner_build_count = 0
         self.commits = 0
+        self.user: Any | None = None
+
+    async def get_user(self, user_id: str) -> Any | None:
+        del user_id
+        return self.user
 
     async def count_owner_website_builds(self, owner_id: str) -> int:
         del owner_id
@@ -86,3 +91,30 @@ def test_create_blocks_after_website_generation() -> None:
     service = ProjectService(cast(Any, repository), "owner-1")
     with pytest.raises(GenerationQuotaExceededError, match="need more credits"):
         asyncio.run(service.create(ProjectDraft()))
+
+
+def test_create_allows_extra_projects_for_unlimited_test_license() -> None:
+    from types import SimpleNamespace
+
+    from launchkit.core.config import Settings
+
+    repository = RepositoryStub()
+    repository.owner_build_count = 1
+    repository.user = SimpleNamespace(
+        id="cognito-1",
+        email="tester@example.com",
+        company_name=None,
+        phone=None,
+        full_name=None,
+        pool=None,
+        profile={"licenseNumber": "07010266"},
+    )
+    service = ProjectService(
+        cast(Any, repository),
+        "cognito-1",
+        Settings(environment="test", unlimited_test_licenses="07010266"),
+    )
+    first = asyncio.run(service.create(ProjectDraft()))
+    second = asyncio.run(service.create(ProjectDraft()))
+    assert first.id != second.id
+    assert len(repository.projects) == 2

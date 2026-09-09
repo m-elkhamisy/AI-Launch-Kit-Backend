@@ -58,8 +58,9 @@ async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
 def get_project_service(
     session: Annotated[AsyncSession, Depends(get_session)],
     owner_id: Annotated[str, Depends(get_current_user_id)],
+    settings: Annotated[Settings, Depends(get_request_settings)],
 ) -> ProjectService:
-    return ProjectService(PersistenceRepository(session), owner_id)
+    return ProjectService(PersistenceRepository(session), owner_id, settings)
 
 
 def get_workflow_service(

@@ -41,6 +41,7 @@ class RepositoryStub:
         self.idempotency: Any | None = None
         self.asset: AssetRecord | None = None
         self.provider_ref: Any | None = None
+        self.user: Any | None = None
         self.events: list[dict[str, Any]] = []
         self.jobs: list[tuple[str, dict[str, str]]] = []
         self.commits = 0
@@ -48,6 +49,10 @@ class RepositoryStub:
     async def get_project(self, project_id: str, owner_id: str) -> ProjectRecord | None:
         del project_id, owner_id
         return self.project
+
+    async def get_user(self, user_id: str) -> Any | None:
+        del user_id
+        return self.user
 
     async def get_mockup(self, mockup_id: str, project_id: str) -> object | None:
         del mockup_id, project_id
@@ -197,6 +202,29 @@ def test_start_enforces_one_website_per_user() -> None:
     repository.owner_build_count = 1
     repeated = start(repository)
     assert created.id == repeated.id
+
+
+def test_start_allows_extra_builds_for_unlimited_test_license() -> None:
+    repository = RepositoryStub()
+    repository.owner_build_count = 1
+    repository.user = SimpleNamespace(
+        id="cognito-1",
+        email="tester@example.com",
+        company_name=None,
+        phone=None,
+        full_name=None,
+        pool=None,
+        profile={"licenceNumber": "07010266"},
+    )
+    created = asyncio.run(
+        BuildService(
+            cast(PersistenceRepository, repository),
+            "owner-1",
+            Settings(environment="test", v0_api_key="v0", unlimited_test_licenses="07010266"),
+            cast(AssetBlobStore, BlobStoreStub()),
+        ).start("project-1", BuildCreate(), "extra-key")
+    )
+    assert created.id == "build-1"
 
 
 def test_start_rejects_a_dangling_idempotency_resource() -> None:

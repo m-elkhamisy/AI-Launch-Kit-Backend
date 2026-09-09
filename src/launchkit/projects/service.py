@@ -4,7 +4,9 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from launchkit.builds.quota import allows_unlimited_website_generation
 from launchkit.builds.service import GenerationQuotaExceededError
+from launchkit.core.config import Settings
 from launchkit.core.exceptions import DomainError
 from launchkit.persistence.models import BuildRecord, ProjectRecord
 from launchkit.persistence.repositories import PersistenceRepository
@@ -17,30 +19,45 @@ class ProjectNotFoundError(DomainError):
 
 
 class ProjectService:
-    def __init__(self, repository: PersistenceRepository, owner_id: str) -> None:
+    def __init__(
+        self,
+        repository: PersistenceRepository,
+        owner_id: str,
+        settings: Settings | None = None,
+    ) -> None:
         self._repository = repository
         self._owner_id = owner_id
+        self._settings = settings or Settings()
 
     async def create(self, draft: ProjectDraft) -> ProjectView:
+        user = await self._repository.get_user(self._owner_id)
+        unlimited = allows_unlimited_website_generation(
+            self._owner_id,
+            user,
+            unlimited_licenses=self._settings.unlimited_test_license_numbers,
+        )
+
         # One website per user: soft-reset an unfinished draft, or block after a generation.
-        if await self._repository.count_owner_website_builds(self._owner_id) >= 1:
-            raise GenerationQuotaExceededError()
-        existing = list(await self._repository.list_projects(self._owner_id))
-        if existing:
-            record = existing[0]
-            # "Create new website" reuses the single allowed project but starts clean.
-            record.business = draft.business.model_dump(by_alias=True)
-            record.design = draft.design.model_dump(by_alias=True)
-            record.page_layout = draft.page_layout.model_dump(by_alias=True)
-            record.extracted_profile_fields = {}
-            record.selected_mockup_id = None
-            record.status = "draft"
-            for asset in list(await self._repository.list_assets(record.id)):
-                if asset.kind in {"profile_source", "profile_image"}:
-                    await self._repository.delete_asset(asset)
-            await self._repository.commit()
-            await self._repository.refresh(record)
-            return await self._view(record)
+        # Unlimited test licenses may create additional projects for retesting.
+        if not unlimited:
+            if await self._repository.count_owner_website_builds(self._owner_id) >= 1:
+                raise GenerationQuotaExceededError()
+            existing = list(await self._repository.list_projects(self._owner_id))
+            if existing:
+                record = existing[0]
+                # "Create new website" reuses the single allowed project but starts clean.
+                record.business = draft.business.model_dump(by_alias=True)
+                record.design = draft.design.model_dump(by_alias=True)
+                record.page_layout = draft.page_layout.model_dump(by_alias=True)
+                record.extracted_profile_fields = {}
+                record.selected_mockup_id = None
+                record.status = "draft"
+                for asset in list(await self._repository.list_assets(record.id)):
+                    if asset.kind in {"profile_source", "profile_image"}:
+                        await self._repository.delete_asset(asset)
+                await self._repository.commit()
+                await self._repository.refresh(record)
+                return await self._view(record)
 
         record = await self._repository.add_project(
             owner_id=self._owner_id,

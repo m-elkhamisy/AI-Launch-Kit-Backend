@@ -75,6 +75,14 @@ class Settings(BaseSettings):
     vercel_base_url: str = "https://api.vercel.com"
     vercel_webhook_secret: SecretStr | None = None
     claim_return_url: str = "http://localhost:5173/"
+    # Comma-separated IC license numbers that may create/generate unlimited websites (testing).
+    unlimited_test_licenses: str = ""
+
+    @property
+    def unlimited_test_license_numbers(self) -> frozenset[str]:
+        return frozenset(
+            part.strip() for part in self.unlimited_test_licenses.split(",") if part.strip()
+        )
 
     @field_validator(
         "auth_otp",
