@@ -14,7 +14,6 @@ from launchkit.api.auth import (
     AuthTokenResponse,
     authenticate_token,
     mint_token,
-    read_token_license,
 )
 from launchkit.auth.client import AuthServiceClient
 from launchkit.auth.cookies import (
@@ -242,7 +241,7 @@ async def callback(
         subject = _api_subject(user)
         if subject:
             license_number = extract_license_number(profile, access_token=access_token)
-            api_token = mint_token(settings, subject, license_number=license_number)
+            api_token = mint_token(settings, subject)
             set_cookie(
                 redirect,
                 name=API_TOKEN_COOKIE,
@@ -282,6 +281,7 @@ async def me(
     if not access_token:
         return AuthMeResponse(authenticated=False)
 
+    profile_token = access_token
     try:
         profile = await client.me(access_token=access_token)
     except ProviderError as exc:
@@ -308,11 +308,20 @@ async def me(
                 refresh_token=None,
                 expires_in=expires_in if isinstance(expires_in, int) else None,
             )
+            profile_token = new_access
             profile = await client.me(access_token=new_access)
         except ProviderError:
             return AuthMeResponse(authenticated=False)
 
-    return AuthMeResponse(authenticated=True, user=AuthUser.model_validate(profile))
+    user = AuthUser.model_validate(profile)
+    profile_dict = dict(profile) if isinstance(profile, dict) else {}
+    return AuthMeResponse(
+        authenticated=True,
+        user=user,
+        owner_id=_api_subject(user),
+        license_number=extract_license_number(profile_dict, access_token=profile_token),
+        profile=profile_dict or None,
+    )
 
 
 @router.get("/token", response_model=AuthTokenResponse)
@@ -330,18 +339,7 @@ async def api_token(
     if not cookie_token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
     subject = authenticate_token(settings, cookie_token)
-    license_number = read_token_license(settings, cookie_token)
-    if not license_number:
-        database = getattr(request.app.state, "database", None)
-        if database is not None:
-            try:
-                async with database.session() as session:
-                    user = await PersistenceRepository(session).get_user(subject)
-                    if user is not None and isinstance(user.profile, dict):
-                        license_number = extract_license_number(user.profile)
-            except Exception:
-                logger.warning("auth_token_license_lookup_failed", subject=subject, exc_info=True)
-    fresh = mint_token(settings, subject, license_number=license_number)
+    fresh = mint_token(settings, subject)
     set_cookie(
         response,
         name=API_TOKEN_COOKIE,

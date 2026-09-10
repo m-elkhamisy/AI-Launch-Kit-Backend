@@ -9,7 +9,6 @@ import structlog
 
 from launchkit.assets import AssetBlobStore, safe_filename
 from launchkit.builds.models import BuildCreate, BuildEventView, BuildPreviewView, BuildView
-from launchkit.builds.quota import allows_unlimited_website_generation
 from launchkit.builds.state import ACTIVE_BUILD_STATUSES
 from launchkit.core.config import Settings
 from launchkit.core.exceptions import ConfigurationError, DomainError
@@ -45,14 +44,12 @@ class BuildService:
         asset_store: AssetBlobStore,
         *,
         v0_status: V0StatusLookup | None = None,
-        license_number: str | None = None,
     ) -> None:
         self._repository = repository
         self._owner_id = owner_id
         self._settings = settings
         self._asset_store = asset_store
         self._v0_status = v0_status
-        self._license_number = license_number
 
     async def start(self, project_id: str, request: BuildCreate, idempotency_key: str) -> BuildView:
         project = await self._repository.get_project(project_id, self._owner_id)
@@ -99,21 +96,13 @@ class BuildService:
         if await self._repository.find_active_build(project_id) is not None:
             raise DomainError("A build is already active for this project.")
         # Every user gets exactly one website generation (failed builds don't count),
-        # unless their IC license is on the temporary unlimited test list.
-        user = await self._repository.get_user(self._owner_id)
-        unlimited = allows_unlimited_website_generation(
-            self._owner_id,
-            user,
-            unlimited_licenses=self._settings.unlimited_test_license_numbers,
-            license_number=self._license_number,
-            quota_disabled=self._settings.disable_generation_quota,
-        )
+        # unless the generation quota is disabled for this environment.
+        unlimited = self._settings.is_generation_quota_disabled
         logger.info(
             "generation_quota_checked",
             owner_id=self._owner_id,
-            license_number=self._license_number,
             unlimited=unlimited,
-            quota_disabled=self._settings.disable_generation_quota,
+            quota_disabled=unlimited,
         )
         if not unlimited and await self._repository.count_owner_website_builds(self._owner_id) >= 1:
             raise GenerationQuotaExceededError()

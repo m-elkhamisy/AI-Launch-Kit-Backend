@@ -128,10 +128,9 @@ def service(
         cast(PersistenceRepository, repository),
         "owner-1",
         Settings(
-            environment="test",
+            environment="staging",
             v0_api_key="v0" if configured else None,
             # Pinned: load_dotenv_file leaks a developer's .env into os.environ.
-            unlimited_test_licenses="",
             disable_generation_quota=False,
             _env_file=None,
         ),
@@ -211,31 +210,20 @@ def test_start_enforces_one_website_per_user() -> None:
     assert created.id == repeated.id
 
 
-def test_start_allows_extra_builds_for_unlimited_test_license() -> None:
+def test_start_allows_extra_builds_when_quota_disabled() -> None:
     repository = RepositoryStub()
     repository.owner_build_count = 1
-    repository.user = SimpleNamespace(
-        id="cognito-1",
-        email="tester@example.com",
-        company_name=None,
-        phone=None,
-        full_name=None,
-        pool=None,
-        profile={"licenceNumber": "07010266"},
-    )
     created = asyncio.run(
         BuildService(
             cast(PersistenceRepository, repository),
             "owner-1",
             Settings(
-                environment="test",
+                environment="staging",
                 v0_api_key="v0",
-                unlimited_test_licenses="07010266",
-                disable_generation_quota=False,
+                disable_generation_quota=True,
                 _env_file=None,
             ),
             cast(AssetBlobStore, BlobStoreStub()),
-            license_number="07010266",
         ).start("project-1", BuildCreate(), "extra-key")
     )
     assert created.id == "build-1"

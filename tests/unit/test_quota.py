@@ -1,75 +1,38 @@
-"""Tests for temporary unlimited-generation license checks."""
+"""Tests for generation-quota on/off and IC license extraction (debug)."""
 
-from types import SimpleNamespace
+import jwt
 
-from launchkit.builds.quota import allows_unlimited_website_generation, extract_license_number
+from launchkit.builds.quota import extract_license_number
 from launchkit.core.config import Settings
 
 
-def test_settings_parses_comma_separated_licenses() -> None:
-    settings = Settings(environment="test", unlimited_test_licenses="07010266, 99999999")
-    assert settings.unlimited_test_license_numbers == frozenset({"07010266", "99999999"})
-
-
-def test_matches_owner_id_directly() -> None:
-    licenses = frozenset({"07010266"})
+def test_generation_quota_disabled_on_local_and_test() -> None:
     assert (
-        allows_unlimited_website_generation("07010266", None, unlimited_licenses=licenses) is True
+        Settings(environment="local", disable_generation_quota=False, _env_file=None)
+        .is_generation_quota_disabled
+        is True
     )
-    assert allows_unlimited_website_generation("other", None, unlimited_licenses=licenses) is False
     assert (
-        allows_unlimited_website_generation("07010266", None, unlimited_licenses=frozenset())
+        Settings(environment="test", disable_generation_quota=False, _env_file=None)
+        .is_generation_quota_disabled
+        is True
+    )
+
+
+def test_generation_quota_enforced_on_production_unless_flagged() -> None:
+    assert (
+        Settings(environment="production", disable_generation_quota=False, _env_file=None)
+        .is_generation_quota_disabled
         is False
     )
-
-
-def test_quota_can_be_disabled_entirely() -> None:
     assert (
-        allows_unlimited_website_generation(
-            "any-owner",
-            None,
-            unlimited_licenses=frozenset(),
-            quota_disabled=True,
-        )
-        is True
-    )
-
-
-def test_matches_license_claim_even_without_user_row() -> None:
-    assert (
-        allows_unlimited_website_generation(
-            "cognito-xyz",
-            None,
-            unlimited_licenses=frozenset({"07010266"}),
-            license_number="07010266",
-        )
-        is True
-    )
-
-
-def test_matches_license_inside_user_profile() -> None:
-    user = SimpleNamespace(
-        id="cognito-xyz",
-        email="a@b.com",
-        company_name=None,
-        phone=None,
-        full_name=None,
-        pool=None,
-        profile={"account": {"licenseNumber": "07010266"}},
-    )
-    assert (
-        allows_unlimited_website_generation(
-            "cognito-xyz",
-            user,
-            unlimited_licenses=frozenset({"07010266"}),
-        )
+        Settings(environment="production", disable_generation_quota=True, _env_file=None)
+        .is_generation_quota_disabled
         is True
     )
 
 
 def test_extract_license_from_access_token_username() -> None:
-    import jwt
-
     token = jwt.encode(
         {"cognito:username": "07010266", "sub": "abc"},
         key="unused",

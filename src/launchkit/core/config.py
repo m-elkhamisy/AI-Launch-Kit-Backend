@@ -75,16 +75,14 @@ class Settings(BaseSettings):
     vercel_base_url: str = "https://api.vercel.com"
     vercel_webhook_secret: SecretStr | None = None
     claim_return_url: str = "http://localhost:5173/"
-    # Comma-separated IC license numbers that may create/generate unlimited websites (testing).
-    unlimited_test_licenses: str = ""
     # Turns the one-website-per-user limit off for everyone (testing environments only).
     disable_generation_quota: bool = False
 
     @property
-    def unlimited_test_license_numbers(self) -> frozenset[str]:
-        return frozenset(
-            part.strip() for part in self.unlimited_test_licenses.split(",") if part.strip()
-        )
+    def is_generation_quota_disabled(self) -> bool:
+        """Quota is off when explicitly flagged, or on local/test (UAT uses environment=test)."""
+
+        return self.disable_generation_quota or self.environment in {"local", "test"}
 
     @field_validator(
         "auth_otp",

@@ -5,7 +5,6 @@ from typing import Any
 import structlog
 from pydantic import BaseModel
 
-from launchkit.builds.quota import allows_unlimited_website_generation
 from launchkit.builds.service import GenerationQuotaExceededError
 from launchkit.core.config import Settings
 from launchkit.core.exceptions import DomainError
@@ -27,34 +26,22 @@ class ProjectService:
         repository: PersistenceRepository,
         owner_id: str,
         settings: Settings | None = None,
-        *,
-        license_number: str | None = None,
     ) -> None:
         self._repository = repository
         self._owner_id = owner_id
         self._settings = settings or Settings()
-        self._license_number = license_number
 
     async def create(self, draft: ProjectDraft) -> ProjectView:
-        user = await self._repository.get_user(self._owner_id)
-        unlimited = allows_unlimited_website_generation(
-            self._owner_id,
-            user,
-            unlimited_licenses=self._settings.unlimited_test_license_numbers,
-            license_number=self._license_number,
-            quota_disabled=self._settings.disable_generation_quota,
-        )
+        unlimited = self._settings.is_generation_quota_disabled
         logger.info(
             "generation_quota_checked",
             owner_id=self._owner_id,
-            license_number=self._license_number,
             unlimited=unlimited,
-            quota_disabled=self._settings.disable_generation_quota,
-            configured_licenses=sorted(self._settings.unlimited_test_license_numbers),
+            quota_disabled=unlimited,
         )
 
         # One website per user: soft-reset an unfinished draft, or block after a generation.
-        # Unlimited test licenses may create additional projects for retesting.
+        # When the quota is disabled, additional projects may be created for retesting.
         if not unlimited:
             if await self._repository.count_owner_website_builds(self._owner_id) >= 1:
                 raise GenerationQuotaExceededError()

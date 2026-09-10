@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -23,8 +25,14 @@ class AuthUser(BaseModel):
 
 
 class AuthMeResponse(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
+
     authenticated: bool
     user: AuthUser | None = None
+    # Debug helpers: owner_id is Cognito UUID; licenseNumber is best-effort IC login id.
+    owner_id: str | None = Field(default=None, alias="ownerId")
+    license_number: str | None = Field(default=None, alias="licenseNumber")
+    profile: dict[str, Any] | None = None
 
 
 class AuthMessageResponse(BaseModel):

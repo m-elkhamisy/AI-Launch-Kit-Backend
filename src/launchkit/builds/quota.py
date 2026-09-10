@@ -1,4 +1,8 @@
-"""Temporary website-generation quota exceptions for internal testing."""
+"""Helpers for IC license extraction (profile / token debug).
+
+Website generation volume is controlled only by
+``Settings.is_generation_quota_disabled`` — there is no per-license whitelist.
+"""
 
 from __future__ import annotations
 
@@ -6,8 +10,6 @@ from collections.abc import Iterable, Mapping
 from typing import Any
 
 import jwt
-
-from launchkit.persistence.models import UserRecord
 
 _LICENSE_PROFILE_KEYS = (
     "licenseNumber",
@@ -69,59 +71,6 @@ def extract_license_number(
         if candidate:
             return candidate
     return None
-
-
-def allows_unlimited_website_generation(
-    owner_id: str,
-    user: UserRecord | None,
-    *,
-    unlimited_licenses: frozenset[str],
-    license_number: str | None = None,
-    quota_disabled: bool = False,
-) -> bool:
-    """Return True when this owner may create/generate more than one website."""
-
-    if quota_disabled:
-        return True
-    if not unlimited_licenses:
-        return False
-    for candidate in (license_number, owner_id):
-        if _matches_unlimited(candidate, unlimited_licenses):
-            return True
-    if user is None:
-        return False
-    for candidate in (
-        user.id,
-        user.email,
-        user.company_name,
-        user.phone,
-        user.full_name,
-        user.pool,
-        extract_license_number(user.profile if isinstance(user.profile, dict) else {}),
-    ):
-        if _matches_unlimited(candidate, unlimited_licenses):
-            return True
-    return any(
-        _matches_unlimited(value, unlimited_licenses)
-        for value in _string_values(user.profile or {})
-    )
-
-
-def _matches_unlimited(value: str | None, unlimited_licenses: frozenset[str]) -> bool:
-    if value is None:
-        return False
-    normalized = value.strip()
-    if normalized in unlimited_licenses:
-        return True
-    # Tolerate missing/extra leading zeros on numeric licenses.
-    digits = "".join(ch for ch in normalized if ch.isdigit())
-    if not digits:
-        return False
-    for license_value in unlimited_licenses:
-        license_digits = "".join(ch for ch in license_value if ch.isdigit())
-        if license_digits and digits.lstrip("0") == license_digits.lstrip("0"):
-            return True
-    return False
 
 
 def _looks_like_license(value: str) -> str | None:

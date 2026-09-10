@@ -17,8 +17,8 @@ def quota_enforced_settings() -> Settings:
     """Pin the quota knobs: ``load_dotenv_file`` leaks a developer's .env into os.environ."""
 
     return Settings(
-        environment="test",
-        unlimited_test_licenses="",
+        # Use staging so local/test auto-bypass does not skip the quota under test.
+        environment="staging",
         disable_generation_quota=False,
         _env_file=None,
     )
@@ -105,30 +105,13 @@ def test_create_blocks_after_website_generation() -> None:
         asyncio.run(service.create(ProjectDraft()))
 
 
-def test_create_allows_extra_projects_for_unlimited_test_license() -> None:
-    from types import SimpleNamespace
-
+def test_create_allows_extra_projects_when_quota_disabled() -> None:
     repository = RepositoryStub()
     repository.owner_build_count = 1
-    repository.user = SimpleNamespace(
-        id="cognito-1",
-        email="tester@example.com",
-        company_name=None,
-        phone=None,
-        full_name=None,
-        pool=None,
-        profile={"licenseNumber": "07010266"},
-    )
     service = ProjectService(
         cast(Any, repository),
-        "cognito-1",
-        Settings(
-            environment="test",
-            unlimited_test_licenses="07010266",
-            disable_generation_quota=False,
-            _env_file=None,
-        ),
-        license_number="07010266",
+        "owner-1",
+        Settings(environment="staging", disable_generation_quota=True, _env_file=None),
     )
     first = asyncio.run(service.create(ProjectDraft()))
     second = asyncio.run(service.create(ProjectDraft()))

@@ -133,7 +133,13 @@ def test_me_unauthenticated() -> None:
     client = TestClient(create_app(_settings()))
     response = client.get("/auth/me")
     assert response.status_code == 200
-    assert response.json() == {"authenticated": False, "user": None}
+    assert response.json() == {
+        "authenticated": False,
+        "user": None,
+        "ownerId": None,
+        "licenseNumber": None,
+        "profile": None,
+    }
 
 
 def test_me_authenticated(monkeypatch: object) -> None:
@@ -145,6 +151,7 @@ def test_me_authenticated(monkeypatch: object) -> None:
             "fullName": "Jane Doe",
             "role": "customer",
             "pool": "inc-customer-pool",
+            "licenseNumber": "07010266",
         }
 
     monkeypatch.setattr("launchkit.auth.client.AuthServiceClient.me", fake_me)
@@ -156,6 +163,9 @@ def test_me_authenticated(monkeypatch: object) -> None:
     assert body["authenticated"] is True
     assert body["user"]["email"] == "user@example.com"
     assert body["user"]["cognitoUserId"] == "sub-1"
+    assert body["ownerId"] == "sub-1"
+    assert body["licenseNumber"] == "07010266"
+    assert body["profile"]["licenseNumber"] == "07010266"
 
 
 def test_me_refreshes_expired_access_token(monkeypatch: object) -> None:

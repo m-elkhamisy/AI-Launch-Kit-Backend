@@ -51,12 +51,7 @@ def verify_access_code(settings: Settings, email: str, code: str) -> AuthTokenRe
     return mint_token(settings, normalized_email)
 
 
-def mint_token(
-    settings: Settings,
-    subject: str,
-    *,
-    license_number: str | None = None,
-) -> AuthTokenResponse:
+def mint_token(settings: Settings, subject: str) -> AuthTokenResponse:
     """Issue a Launch Kit API JWT for an already-authenticated subject."""
 
     now = datetime.now(UTC)
@@ -68,8 +63,6 @@ def mint_token(
         "iat": now,
         "exp": expires_at,
     }
-    if license_number:
-        payload["license"] = license_number
     secret = _secret_value(
         settings,
         settings.auth_token_secret,
@@ -89,14 +82,6 @@ def authenticate_token(settings: Settings, token: str) -> str:
     if not isinstance(subject, str) or not subject:
         raise AuthenticationError("The access session is invalid or expired.")
     return subject
-
-
-def read_token_license(settings: Settings, token: str) -> str | None:
-    """Return the optional IC license claim from a Launch Kit API JWT."""
-
-    payload = _decode_token(settings, token)
-    license_number = payload.get("license")
-    return license_number.strip() if isinstance(license_number, str) and license_number.strip() else None
 
 
 def _decode_token(settings: Settings, token: str) -> dict[str, Any]:
